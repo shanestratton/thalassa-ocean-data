@@ -1,0 +1,2 @@
+# Compatibility entrypoint. The authoritative transitive SHA-256 lock is shared.
+-r ../cmems-requirements.lock

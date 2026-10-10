@@ -1,0 +1,21 @@
+{
+    "version": 1,
+    "type": "rasterarray",
+    "minzoom": 0,
+    "maxzoom": 6,
+    "layers": {
+        "currents": {
+            "tilesize": 512,
+            "buffer": 1,
+            "resampling": "bilinear",
+            "input_no_data_value": -9999,
+            "source_rules": {
+                "filter": [
+                    ["all", ["==", ["sourcetag"], "u"]],
+                    ["all", ["==", ["sourcetag"], "v"]]
+                ],
+                "name": ["sourcetag"]
+            }
+        }
+    }
+}

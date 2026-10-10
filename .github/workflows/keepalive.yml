@@ -1,0 +1,41 @@
+name: Keep schedules alive
+
+# GitHub switches off scheduled workflows in a public repository after 60 days
+# without repository activity, and this repository gets few commits. Publishing
+# releases may not count as activity, so this records one small commit a month.
+on:
+    schedule:
+        - cron: '41 5 1 * *'
+    workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+    group: keepalive
+    cancel-in-progress: false
+
+jobs:
+    keepalive:
+        if: github.ref == 'refs/heads/master'
+        runs-on: ubuntu-24.04
+        timeout-minutes: 5
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+            - name: Record this month
+              run: |
+                  set -euo pipefail
+                  month=$(date -u +%Y-%m)
+                  printf '%s\n' "$month" > .github/keepalive
+                  git add .github/keepalive
+                  if git diff --cached --quiet; then
+                      echo "Already recorded $month"
+                      exit 0
+                  fi
+                  git -c user.name='github-actions[bot]' \
+                      -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+                      commit -m "keepalive: $month"
+                  git push origin HEAD:master

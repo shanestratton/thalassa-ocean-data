@@ -1,0 +1,99 @@
+name: CMEMS Currents - Trusted Release
+
+on:
+    schedule:
+        # Staggered six-hour schedules produce a three-hour refresh with dual-slot headroom.
+        - cron: '20 */6 * * *'
+        - cron: '20 3,9,15,21 * * *'
+    workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+    group: publisher-cmems-currents
+    cancel-in-progress: false
+
+jobs:
+    generate:
+        if: github.ref == 'refs/heads/master'
+        runs-on: ubuntu-24.04
+        timeout-minutes: 40
+        permissions:
+            contents: read
+        steps:
+            - name: Checkout producer commit
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Set up Python 3.11.15
+              uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+              with:
+                  python-version: '3.11.15'
+                  cache: pip
+                  cache-dependency-path: scripts/cmems-requirements.lock
+
+            - name: Install hash-locked producer dependencies
+              run: 'python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/cmems-requirements.lock'
+
+            - name: Run offline publisher contract fixtures
+              env:
+                  NO_PROXY: '127.0.0.1,localhost,::1'
+                  HTTPS_PROXY: 'http://127.0.0.1:9'
+                  HTTP_PROXY: 'http://127.0.0.1:9'
+                  ALL_PROXY: 'http://127.0.0.1:9'
+              run: |
+                  export no_proxy="$NO_PROXY"
+                  export https_proxy="$HTTPS_PROXY"
+                  export http_proxy="$HTTP_PROXY"
+                  export all_proxy="$ALL_PROXY"
+                  python -m unittest discover -s scripts/publisher-tests -p 'test_*.py'
+
+            - name: Generate and validate immutable bundle
+              env:
+                  COPERNICUS_MARINE_USERNAME: ${{ secrets.COPERNICUS_MARINE_USERNAME }}
+                  COPERNICUS_MARINE_PASSWORD: ${{ secrets.COPERNICUS_MARINE_PASSWORD }}
+                  CMEMS_OUT_DIR: /tmp/cmems-currents
+              run: python scripts/cmems-currents-pipeline/pipeline.py
+
+            - name: Seal generated bundle as workflow artifact
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  # Run-stable so rerunning only a failed publish job reuses
+                  # the sealed producer output from the earlier attempt.
+                  name: currents-${{ github.run_id }}
+                  path: /tmp/cmems-currents/bundle/
+                  if-no-files-found: error
+                  retention-days: 1
+                  overwrite: true
+                  compression-level: 0
+
+    publish:
+        if: github.ref == 'refs/heads/master'
+        needs: generate
+        runs-on: ubuntu-24.04
+        timeout-minutes: 30
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout publisher commit
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Set up publisher Python 3.11.15
+              uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+              with:
+                  python-version: '3.11.15'
+
+            - name: Restore sealed bundle
+              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+              with:
+                  name: currents-${{ github.run_id }}
+                  path: /tmp/publisher-bundle
+
+            - name: Verify remote assets and publish manifest last
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GITHUB_REPOSITORY: ${{ github.repository }}
+              run: python scripts/publish_dataset.py --dataset currents --bundle /tmp/publisher-bundle
