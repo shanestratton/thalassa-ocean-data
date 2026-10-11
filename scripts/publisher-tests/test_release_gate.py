@@ -352,12 +352,13 @@ class PublisherReleaseGateTests(unittest.TestCase):
                 self.assertTrue(includes_all(read(f"scripts/publisher-tests/{filename}"), names))
         # A no-tests-deleted tripwire: a deliberate ADDITION moves it up.
         # 66 = the app repo's pin of 60, minus the two app-side source checks that
-        # stayed with the app (proxy and Vercel routing), plus the eight in this file.
+        # stayed with the app (proxy and Vercel routing), plus the eight in this file,
+        # plus the MPA sliver-area test (67).
         count = sum(
             len(re.findall(r"(?m)^\s*def test_", path.read_text()))
             for path in sorted((REPO_ROOT / "scripts/publisher-tests").glob("test_*.py"))
         )
-        self.assertEqual(count, 66)
+        self.assertEqual(count, 67)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(

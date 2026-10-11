@@ -14,7 +14,8 @@ must reconcile exactly; null geometry, partial pages, duplicates, coordinates
 outside the Australian-territory safety envelope, excessive source bytes, or
 excessive coordinate counts fail the run.
 
-`GIS_AREA` is hectares and is explicitly divided by 100 for `area_km2`. The
+`GIS_AREA` is hectares and is explicitly divided by 100 for `area_km2`, kept to
+eight significant figures so a sub-square-metre sliver stays positive. The
 public GeoJSON is capped at 16 MiB, validated again across the artifact trust
 boundary, and published under a generation-named immutable filename.
 
