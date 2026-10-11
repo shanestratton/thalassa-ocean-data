@@ -49,9 +49,10 @@ private repository.
 ## One-time setup
 
 1. **Settings → Secrets and variables → Actions → New repository secret:** add `COPERNICUS_MARINE_USERNAME`
-   and `COPERNICUS_MARINE_PASSWORD`, your Copernicus Marine login. If you don't have the password to hand,
-   reset it at [marine.copernicus.eu](https://marine.copernicus.eu); the old repository's copy cannot be
-   read back.
+   and `COPERNICUS_MARINE_PASSWORD`, your Copernicus Marine login. The app repository's copy cannot be read
+   back. If you have to reset the password at [marine.copernicus.eu](https://marine.copernicus.eu), update
+   the same secret in `thalassa-marine-weather` in the same sitting: its publishers keep the live layers
+   fresh until the switch-over, and currents go stale 12 hours after their last good run.
 2. Leave **immutable releases** switched off (**Settings → General → Releases**): the discovery manifests
    are replaced on every run.
 3. **Actions →** run each of the seven pipelines once (**Run workflow**, branch `master`), so every dataset
@@ -61,7 +62,7 @@ private repository.
 ## Checking it
 
 ```sh
-curl -sSI https://www.thalassawx.app/api/currents/manifest-v2.json | grep -i -E '^(HTTP|x-thalassa)'
+curl -sS -D - -o /dev/null https://www.thalassawx.app/api/currents/manifest-v2.json | grep -i -E '^(HTTP|x-thalassa)'
 ```
 
 A healthy answer is `HTTP/2 200` with an `x-thalassa-generation` from the last few hours.

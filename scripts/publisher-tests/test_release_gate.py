@@ -80,12 +80,17 @@ class PublisherReleaseGateTests(unittest.TestCase):
             source = path.read_text()
             code = re.sub(r"(?m)^\s*#.*$", "", source)
             with self.subTest(workflow=path.name):
-                self.assertRegex(code, r"(?m)^permissions:")
+                # Top-level permissions are {} or a block, never a blanket grant.
+                self.assertRegex(source, r"(?m)^permissions:\s*(?:\{\})?\s*$")
+                self.assertNotRegex(code, r"\b(?:read-all|write-all)\b")
                 runners = re.findall(r"(?m)^\s*runs-on:\s*([^\s#]+)\s*$", code)
                 self.assertTrue(runners)
                 self.assertEqual(set(runners), {"ubuntu-24.04"})
                 for action, ref in re.findall(r"(?m)^\s*(?:-\s+)?uses:\s*([^@\s]+)@([^\s#]+)", code):
                     self.assertEqual(REVIEWED_ACTION_PINS.get(action), ref, f"{action}@{ref} is not a reviewed pin")
+                # Every pin keeps an audit-friendly version comment.
+                for line in re.findall(r"(?m)^\s*(?:-\s+)?uses:.*$", source):
+                    self.assertRegex(line, r"@[0-9a-f]{40} # v\d+\.\d+\.\d+\s*$", line)
                 self.assertEqual(len(re.findall(r"(?m)^\s*(?:-\s+)?uses:", code)), len(re.findall(r"(?m)uses:\s*[^@\s]+@", code)))
                 writes = sorted(re.findall(r"([A-Za-z0-9_-]+):\s*write\b", code))
                 expected = ["contents"] if PIPELINE_WORKFLOW.match(path.name) or path.name == "keepalive.yml" else []
@@ -405,10 +410,26 @@ class PublisherReleaseGateTests(unittest.TestCase):
             ("chl", "- cron: '47 4,16 * * *'"),
         ):
             self.assertIn(cron, workflow(dataset))
-        # The retired Mapbox tileset publisher left no instruction surface behind.
-        readme = read("scripts/cmems-currents-pipeline/README.md")
-        for marker in ("MAPBOX_UPLOAD_TOKEN", "MAPBOX_USERNAME", "VITE_MAPBOX_USERNAME", "mapbox-tilesets", "thalassa-currents-h"):
-            self.assertNotIn(marker, readme)
+        # The retired Mapbox tileset publisher left no credential, endpoint or
+        # instruction anywhere (the markers are split so this file never matches).
+        markers = [
+            "_".join(["MAPBOX", "UPLOAD", "TOKEN"]),
+            "_".join(["MAPBOX", "USERNAME"]),
+            "_".join(["VITE", "MAPBOX", "USERNAME"]),
+            "-".join(["mapbox", "tilesets"]),
+            "/".join(["api.mapbox.com", "tilesets", "v1"]),
+            "/".join(["api.mapbox.com", "rasterarrays", "v1"]),
+            "-".join(["thalassa", "currents", "h"]),
+        ]
+        for path in sorted(REPO_ROOT.rglob("*")):
+            if not path.is_file() or ".git" in path.parts or "__pycache__" in path.parts:
+                continue
+            try:
+                text = path.read_text().lower()
+            except UnicodeDecodeError:
+                continue
+            for marker in markers:
+                self.assertNotIn(marker.lower(), text, f"{path.relative_to(REPO_ROOT)} names the retired {marker}")
 
 
 if __name__ == "__main__":

@@ -49,7 +49,7 @@ AU_ENVELOPE = {"west": 70.0, "east": 180.0, "south": -60.0, "north": 0.0}
 OUT_DIR = Path(os.environ.get("MPA_OUT_DIR", "/tmp/mpa-pipeline"))
 RAW_GEOJSON_PATH = OUT_DIR / "mpa.geojson"
 BUNDLE_DIR = OUT_DIR / "bundle"
-USER_AGENT = "thalassa-marine-weather/2.0 (mpa-pipeline; safety-data contact via repository)"
+USER_AGENT = "thalassa-marine-weather/2.0 (mpa-pipeline; contact: https://github.com/shanestratton/thalassa-ocean-data)"
 
 # These neutral protection classes drive map colours only. They are indicative
 # heuristics from registry labels and never assert that fishing, anchoring or

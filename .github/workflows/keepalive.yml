@@ -3,9 +3,11 @@ name: Keep schedules alive
 # GitHub switches off scheduled workflows in a public repository after 60 days
 # without repository activity, and this repository gets few commits. Publishing
 # releases may not count as activity, so this records one small commit a month.
+# Two chances a month: one failed run must not stretch the gap past 60 days.
 on:
     schedule:
         - cron: '41 5 1 * *'
+        - cron: '41 5 15 * *'
     workflow_dispatch:
 
 permissions: {}
