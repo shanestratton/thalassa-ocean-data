@@ -6,6 +6,11 @@ import sys
 import unittest
 from pathlib import Path
 
+try:
+    import numpy as np
+except ModuleNotFoundError:  # MPA's deliberately minimal offline test environment.
+    np = None
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 MODULE_PATH = REPO_ROOT / "scripts/cmems-waves-pipeline/pipeline.py"
@@ -61,9 +66,8 @@ class CircularWaveMathTests(unittest.TestCase):
         self.assertAlmostEqual(expected[1], -(4.0 / 3.0), places=6)
         self.assertEqual(expected, permuted)
 
+    @unittest.skipUnless(np is not None, "NumPy is installed only in CMEMS generation jobs")
     def test_grid_fallback_uses_same_stable_tie_rule(self) -> None:
-        import numpy as np
-
         heights = np.array([[2.0, 2.0], [1.0, 1.0]])
         directions = np.array([[270.0, 90.0], [0.0, 180.0]])
         selected = waves.dominant_direction_grid(heights, directions, 2, 2)
