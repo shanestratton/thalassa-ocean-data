@@ -151,6 +151,26 @@ class MpaTransportTests(unittest.TestCase):
         # The last stays under publisher_contract's strict 2,000,000 km² cap.
         self.assertEqual(areas, [1e-9, 0.001, 987654.321, 1999999.994])
 
+    def test_marine_sanctuaries_and_uncategorised_reserves_are_never_understated(self) -> None:
+        # Real CAPAD 2024-06-30 rows: Victoria's marine sanctuaries carry IUCN III but are
+        # no-take; species sanctuaries keep their IUCN class; NR/NAS rows had shown as
+        # multiple-use (blue) though their category says nothing about the rules.
+        cases = [
+            ({"NAME": "Point Danger", "TYPE": "Marine Sanctuary", "IUCN": "III", "STATE": "VIC"}, "high"),
+            ({"NAME": "Beware Reef", "TYPE": "Marine Sanctuary", "IUCN": "II", "STATE": "VIC"}, "high"),
+            ({"NAME": "Torres Strait Dugong Sanctuary", "TYPE": "Marine Sanctuary", "IUCN": "IV"}, "conditional"),
+            ({"NAME": "Adelaide Dolphin Sanctuary", "TYPE": "Dolphin Sanctuary", "IUCN": "IV"}, "conditional"),
+            ({"NAME": "Gleesons Landing", "TYPE": "Rock Lobster Sanctuary", "IUCN": "IV"}, "conditional"),
+            ({"NAME": "Great Barrier Reef", "TYPE": "Marine Park", "IUCN": "NR"}, "conditional"),
+            ({"NAME": "Rottnest Island", "TYPE": "State Reserve", "IUCN": "NAS"}, "conditional"),
+            ({"NAME": "Moreton Bay", "TYPE": "Marine Park", "IUCN": ""}, "conditional"),
+            ({"NAME": "Moreton Bay", "TYPE": "Marine Park", "IUCN": "VI"}, "multiple_use"),
+            ({"NAME": "Ningaloo", "TYPE": "Marine Park", "IUCN": "II"}, "high"),
+        ]
+        for properties, expected in cases:
+            with self.subTest(**{key.lower(): value for key, value in properties.items()}):
+                self.assertEqual(mpa.classify_protection(properties), expected)
+
 
 if __name__ == "__main__":
     unittest.main()

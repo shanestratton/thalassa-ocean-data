@@ -30,6 +30,12 @@ neutral, display-oriented `protection_class`:
 - `conditional`
 - `multiple_use`
 
+The class comes from the IUCN category (Ia, Ib and II high; III and IV
+conditional), except that a marine sanctuary is high unless it protects one
+species (dugong, dolphin, rock lobster). Without an IUCN category, keywords in
+the type and name decide, and a reserve with no category and no keyword is
+conditional, never multiple-use.
+
 Each feature also carries `classification_source: indicative_heuristic`. These
 classes control map styling only. They are not permissions, prohibitions, legal
 advice, or a substitute for the responsible authority's current zoning rules.

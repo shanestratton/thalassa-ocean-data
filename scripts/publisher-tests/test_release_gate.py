@@ -339,6 +339,7 @@ class PublisherReleaseGateTests(unittest.TestCase):
                 "test_unsimplified_fallback_omits_offset_and_coordinate_rounding",
                 "test_gis_area_hectares_are_converted_without_losing_tiny_positive_area",
                 "test_sub_square_metre_slivers_keep_a_positive_area",
+                "test_marine_sanctuaries_and_uncategorised_reserves_are_never_understated",
             ],
             "test_cmems_science.py": [
                 "test_official_cf_metadata_is_accepted_for_every_field_and_axis",
@@ -369,12 +370,12 @@ class PublisherReleaseGateTests(unittest.TestCase):
         # A no-tests-deleted tripwire: a deliberate ADDITION moves it up.
         # 66 = the app repo's pin of 60, minus the two app-side source checks that
         # stayed with the app (proxy and Vercel routing), plus the eight in this file,
-        # plus the MPA sliver-area test (67).
+        # plus the MPA sliver-area and classification tests (68).
         count = sum(
             len(re.findall(r"(?m)^\s*def test_", path.read_text()))
             for path in sorted((REPO_ROOT / "scripts/publisher-tests").glob("test_*.py"))
         )
-        self.assertEqual(count, 67)
+        self.assertEqual(count, 68)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(

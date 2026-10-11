@@ -61,6 +61,9 @@ HIGH_PROTECTION_KEYWORDS = (
     "no take",
     "scientific reference",
 )
+# A marine sanctuary outranks its IUCN III/IV label (Victoria's are no-take); a
+# sanctuary for one species does not.
+SPECIES_SANCTUARY_KEYWORDS = ("dugong", "dolphin", "rock lobster")
 CONDITIONAL_PROTECTION_KEYWORDS = (
     "habitat protection",
     "habitat zone",
@@ -294,14 +297,20 @@ def fetch_capad_marine() -> tuple[dict[str, Any], str]:
 def classify_protection(properties: Mapping[str, Any]) -> str:
     """Return a neutral display class, never a legal activity determination."""
     iucn = str(properties.get("IUCN") or "").strip()
+    haystack = " ".join(str(properties.get(key) or "").lower() for key in ("TYPE", "ZONE_TYPE", "NAME"))
+    if "marine sanctuary" in haystack and not any(keyword in haystack for keyword in SPECIES_SANCTUARY_KEYWORDS):
+        return "high"
     if iucn in {"Ia", "Ib", "II"}:
         return "high"
     if iucn in {"III", "IV"}:
         return "conditional"
-    haystack = " ".join(str(properties.get(key) or "").lower() for key in ("TYPE", "ZONE_TYPE", "NAME"))
     if any(keyword in haystack for keyword in HIGH_PROTECTION_KEYWORDS):
         return "high"
     if any(keyword in haystack for keyword in CONDITIONAL_PROTECTION_KEYWORDS):
+        return "conditional"
+    # No IUCN category (NR, NAS or blank) says nothing about the rules: "they vary",
+    # never the multiple-use class.
+    if iucn in {"", "NR", "NAS"}:
         return "conditional"
     return "multiple_use"
 
