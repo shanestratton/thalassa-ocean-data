@@ -168,8 +168,23 @@ class PublisherReleaseGateTests(unittest.TestCase):
         )
 
     def test_offline_fixtures_have_a_localhost_only_dead_proxy_fence(self) -> None:
-        for dataset in DATASETS:
-            source = workflow(dataset)
+        ci = read(".github/workflows/ci.yml")
+        # CI runs the suite once per lock, so a test that needs a package only the CMEMS jobs
+        # install fails on push, not in the weekly MPA run (it broke that run for five weeks).
+        self.assertTrue(
+            includes_all(
+                ci,
+                [
+                    "lock: scripts/cmems-requirements.lock",
+                    "lock: scripts/mpa-pipeline/requirements.txt",
+                    "cache-dependency-path: ${{ matrix.lock }}",
+                    "LOCK: ${{ matrix.lock }}",
+                    '-r "$LOCK"',
+                ],
+            )
+        )
+        self.assertNotRegex(ci, r"(?m)^\s+run:.*\$\{\{")
+        for dataset, source in [(dataset, workflow(dataset)) for dataset in DATASETS] + [("ci", ci)]:
             offline = step_source(source, "Run offline publisher")
             with self.subTest(dataset=dataset):
                 self.assertTrue(
@@ -323,6 +338,7 @@ class PublisherReleaseGateTests(unittest.TestCase):
                 "test_aggregate_page_budget_blocks_multi_page_memory_growth",
                 "test_unsimplified_fallback_omits_offset_and_coordinate_rounding",
                 "test_gis_area_hectares_are_converted_without_losing_tiny_positive_area",
+                "test_sub_square_metre_slivers_keep_a_positive_area",
             ],
             "test_cmems_science.py": [
                 "test_official_cf_metadata_is_accepted_for_every_field_and_axis",

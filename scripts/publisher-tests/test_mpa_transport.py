@@ -134,7 +134,7 @@ class MpaTransportTests(unittest.TestCase):
     def test_sub_square_metre_slivers_keep_a_positive_area(self) -> None:
         # CAPAD returned a GIS_AREA under 5e-7 ha on 2026-10-11; eight decimal places of
         # km² rounded it to 0 and failed the whole run.
-        hectares = [1e-7, 0.1, 98_765_432.1]
+        hectares = [1e-7, 0.1, 98_765_432.1, 199_999_999.4]
         features = [
             {
                 "type": "Feature",
@@ -142,13 +142,14 @@ class MpaTransportTests(unittest.TestCase):
                     "type": "Polygon",
                     "coordinates": [[[150.0, -30.0], [150.01, -30.0], [150.01, -29.99], [150.0, -30.0]]],
                 },
-                "properties": {"NAME": "Zone", "TYPE": "Marine Park", "GIS_AREA": hectares[index % 3]},
+                "properties": {"NAME": "Zone", "TYPE": "Marine Park", "GIS_AREA": hectares[index % 4]},
             }
-            for index in range(102)
+            for index in range(104)
         ]
         normalized, _ = mpa.normalise_features({"type": "FeatureCollection", "features": features})
-        areas = [feature["properties"]["area_km2"] for feature in normalized["features"][:3]]
-        self.assertEqual(areas, [1e-9, 0.001, 987654.32])
+        areas = [feature["properties"]["area_km2"] for feature in normalized["features"][:4]]
+        # The last stays under publisher_contract's strict 2,000,000 km² cap.
+        self.assertEqual(areas, [1e-9, 0.001, 987654.321, 1999999.994])
 
 
 if __name__ == "__main__":

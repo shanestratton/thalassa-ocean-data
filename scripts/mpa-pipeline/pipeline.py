@@ -365,9 +365,9 @@ def normalise_features(collection: Mapping[str, Any]) -> tuple[dict[str, Any], d
             "zone": str(properties.get("ZONE_TYPE") or "")[:200],
             "authority": str(properties.get("AUTHORITY") or "")[:200],
             "state": str(properties.get("STATE") or "")[:80],
-            # Significant figures, not decimal places: CAPAD carries sub-square-metre
-            # slivers whose km² value rounds to 0 at any fixed number of decimals.
-            "area_km2": float(f"{float(area) / 100:.8g}"),
+            # Eight decimal places, or eight significant figures for a sub-square-metre
+            # sliver (CAPAD carries some) that the decimals would round to 0.
+            "area_km2": round(float(area) / 100, 8) or float(f"{float(area) / 100:.8g}"),
             "protection_class": classify_protection(properties),
             "classification_source": "indicative_heuristic",
         }
