@@ -363,6 +363,17 @@ class PublisherReleaseGateTests(unittest.TestCase):
                 "test_real_failures_still_raise",
                 "test_first_v2_publish_can_bootstrap_with_neither_slot_present",
             ],
+            "test_ssh_grid.py": [
+                "test_distinct_protocol_and_reserved_bytes",
+                "test_exact_dimensions_size_and_original_time",
+                "test_unknown_and_masked_values_are_not_silent",
+                "test_nonfinite_and_nonphysical_never_publish",
+                "test_stable_four_channel_ice_and_coast_mask",
+                "test_freshness_has_no_future_forecast_exception",
+                "test_original_cf_packed_values_fill_ice_and_bounds_dimension",
+                "test_cf_wrong_units_identity_or_orientation_rejected",
+                "test_cf_original_time_calendar_and_unreviewed_dimension_rejected",
+            ],
         }
         for filename, names in expectations.items():
             with self.subTest(suite=filename):
@@ -371,11 +382,11 @@ class PublisherReleaseGateTests(unittest.TestCase):
         # 66 = the app repo's pin of 60, minus the two app-side source checks that
         # stayed with the app (proxy and Vercel routing), plus the eight in this file,
         # plus the MPA sliver-area and classification tests (68).
-        count = sum(
-            len(re.findall(r"(?m)^\s*def test_", path.read_text()))
-            for path in sorted((REPO_ROOT / "scripts/publisher-tests").glob("test_*.py"))
-        )
-        self.assertEqual(count, 68)
+        counts = {path.name: len(re.findall(r"(?m)^\s*def test_", path.read_text()))
+                  for path in sorted((REPO_ROOT / "scripts/publisher-tests").glob("test_*.py"))}
+        self.assertEqual(sum(n for name, n in counts.items() if name != 'test_ssh_grid.py'), 68)
+        self.assertEqual(counts['test_ssh_grid.py'], 14)
+        self.assertEqual(sum(counts.values()), 82)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(

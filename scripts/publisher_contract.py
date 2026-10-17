@@ -91,6 +91,14 @@ DATASETS: dict[str, dict[str, Any]] = {
         "kind": "geojson",
         "max_file_bytes": 16 * 1024 * 1024,
     },
+    "ssh": {
+        "id": "cmems_obs-sl_glo_phy-ssh_nrt_allsat-l4-duacs-0.125deg_P1D",
+        "release_tag": "cmems-ssh-latest",
+        "steps": 1,
+        "cadence_hours": 24,
+        "kind": "ssh-observed",
+        "max_file_bytes": 5 * 1024 * 1024,
+    },
 }
 
 
@@ -423,7 +431,7 @@ def build_cmems_bundle(
     metadata: Mapping[str, Any] | None = None,
 ) -> Path:
     spec = DATASETS.get(dataset_key)
-    _require(spec is not None and spec["kind"] == "cmems-binary", "unknown CMEMS dataset key")
+    _require(spec is not None and spec["kind"] in ("cmems-binary", "ssh-observed"), "unknown CMEMS dataset key")
     expected_steps = int(spec["steps"])
     cadence = int(spec["cadence_hours"])
     _require(len(source_paths) == expected_steps, f"{dataset_key}: expected {expected_steps} files")
@@ -435,7 +443,11 @@ def build_cmems_bundle(
         "actual data times violate declared forecast offsets",
     )
 
-    headers = [read_thcu_header(path) for path in source_paths]
+    if spec["kind"] == "ssh-observed":
+        from ssh_grid import read_ssh_header
+        headers = [read_ssh_header(path) for path in source_paths]
+    else:
+        headers = [read_thcu_header(path) for path in source_paths]
     first_header = headers[0]
     _require(all(header == first_header for header in headers), "binary grid changed between forecast steps")
     hashes = [sha256_path(path) for path in source_paths]
@@ -638,7 +650,24 @@ def validate_manifest(
 
     _require(generation == _generation(manifest["data_start"], [entry["sha256"] for entry in files], expected_dataset), "generation digest does not match source time and assets")
 
-    if spec["kind"] == "cmems-binary":
+    if spec["kind"] == "ssh-observed":
+        from ssh_grid import BOUNDS, FILE_BYTES, HEIGHT, WIDTH, SSH_METADATA, validate_ssh_payload
+        _require(expected_dataset == "ssh" and manifest.get("cadence_hours") == 24, "SSH daily observation identity")
+        _require(manifest.get("dimensions") == {"width": WIDTH, "height": HEIGHT}, "SSH exact display dimensions")
+        _require(bounds == BOUNDS and data_end == data_start, "SSH global observation bounds/time")
+        _require(data_start.hour == data_start.minute == data_start.second == 0, "SSH source date must be original daily UTC")
+        _require(0 <= (generated_at - data_start).total_seconds() <= 4 * 86400, "SSH source was stale at generation")
+        entry = files[0]
+        _require(entry["offset_hours"] == 0 and entry["data_time"] == manifest["data_start"] and entry["bytes"] == FILE_BYTES,
+                 "SSH cannot be relabelled as a forecast or a different grid")
+        _require(manifest.get("metadata") == SSH_METADATA, "SSH provenance/units/credit metadata")
+        if bundle_dir is not None:
+            try:
+                header = validate_ssh_payload(bundle_dir / entry["filename"])
+            except ValueError as exc:
+                raise ContractError(str(exc)) from exc
+            _require(header["source_time_ms"] == int(data_start.timestamp()) * 1000, "SSH source time differs from its binary")
+    elif spec["kind"] == "cmems-binary":
         cadence = int(spec["cadence_hours"])
         _require(manifest.get("cadence_hours") == cadence, "manifest cadence mismatch")
         dimensions = manifest.get("dimensions")
@@ -764,6 +793,10 @@ def validate_publication_freshness(manifest: Mapping[str, Any], now: datetime | 
         _require(data_start <= current_time, f"{dataset_key} source start is in the future")
         _require(data_end >= current_time + timedelta(hours=48), f"{dataset_key} daily forecast coverage is too short")
         _require(data_end <= current_time + timedelta(days=7), f"{dataset_key} source end is implausibly far in the future")
+    elif dataset_key == "ssh":
+        _require(current_time - timedelta(days=4) <= data_start <= current_time,
+                 "SSH original observation date is stale or future")
+        _require(data_end == data_start, "SSH observations cannot acquire a forecast horizon")
     elif dataset_key == "mpa":
         # CAPAD is an infrequently issued registry rather than a forecast. Ten
         # years is a deliberate hard ceiling that catches broken epoch values
