@@ -35,7 +35,8 @@ jobs:
             - name: Install only reviewed hash-locked wheels
               env:
                   LOCK: ${{ matrix.lock }}
-              run: python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r "$LOCK"
+              run: |
+                  python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r "$LOCK"
             - name: Run every original and SSH fixture behind a dead proxy
               env:
                   NO_PROXY: '127.0.0.1,localhost,::1'
