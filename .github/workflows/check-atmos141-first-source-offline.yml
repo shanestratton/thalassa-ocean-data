@@ -1,0 +1,117 @@
+name: Atmosphere 141 first-source isolated offline proof
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: atmos141-first-source-offline-proof
+    cancel-in-progress: false
+
+jobs:
+    offline:
+        if: github.repository == 'shanestratton/thalassa-ocean-data' && github.actor == 'shanestratton' && github.run_attempt == 1
+        name: offline (${{ matrix.name }})
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - name: cmems-source
+                      lock: scripts/cmems-requirements.lock
+                      suite: scripts/publisher-tests
+                      expected: 114
+                    - name: atmos-native
+                      lock: scripts/atmos-requirements.lock
+                      suite: scripts/atmos-native-tests
+                      expected: 3
+        env:
+            PROOF_SOURCE_SHA: 6b4cee76deb14cd4b5469b6228aec384baa5133a
+            PYTHONFAULTHANDLER: '1'
+            OPENBLAS_NUM_THREADS: '1'
+            OMP_NUM_THREADS: '1'
+        steps:
+            - name: Checkout exact frozen producer source
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  ref: 6b4cee76deb14cd4b5469b6228aec384baa5133a
+                  persist-credentials: false
+            - name: Set up Python 3.11.15
+              uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+              with:
+                  python-version: '3.11.15'
+            - name: Record immutable source and control identity
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  test "$(git rev-parse HEAD)" = "$PROOF_SOURCE_SHA"
+                  test -z "$(git status --porcelain)"
+                  mkdir -p "$RUNNER_TEMP/atmos141-first-offline-proof"
+                  printf '%s\n' "$PROOF_SOURCE_SHA" > "$RUNNER_TEMP/atmos141-first-offline-proof/source.txt"
+                  printf '%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/atmos141-first-offline-proof/control.txt"
+                  python --version > "$RUNNER_TEMP/atmos141-first-offline-proof/python.txt"
+                  sha256sum scripts/atmos_contract.py scripts/atmos_pipeline.py scripts/publisher_contract.py scripts/publisher-tests/test_atmos.py scripts/publisher-tests/test_release_gate.py scripts/atmos-native-tests/test_native_atmos.py scripts/atmos-requirements.lock scripts/cmems-requirements.lock scripts/ssh_grid.py scripts/publisher-tests/test_ssh_grid.py .github/workflows/atmos-held-pipeline.yml scripts/prove_atmos_first_source.py scripts/publisher-tests/test_atmos_admission.py scripts/publisher-tests/test_atmos_first_source.py scripts/atmos-first-source-review.md > "$RUNNER_TEMP/atmos141-first-offline-proof/source-sha256.txt"
+            - name: Install only this production process hash lock
+              env:
+                  PROOF_LOCK: ${{ matrix.lock }}
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r "$PROOF_LOCK" 2>&1 | tee "$RUNNER_TEMP/atmos141-first-offline-proof/install.log"
+                  python -m pip check 2>&1 | tee "$RUNNER_TEMP/atmos141-first-offline-proof/pip-check.txt"
+                  python -m pip freeze > "$RUNNER_TEMP/atmos141-first-offline-proof/packages.txt"
+            - name: Prove unchanged fixtures and actual clean native process exit
+              env:
+                  PROOF_NAME: ${{ matrix.name }}
+                  PROOF_SUITE: ${{ matrix.suite }}
+                  PROOF_EXPECTED: ${{ matrix.expected }}
+                  NO_PROXY: '127.0.0.1,localhost,::1'
+                  HTTPS_PROXY: 'http://127.0.0.1:9'
+                  HTTP_PROXY: 'http://127.0.0.1:9'
+                  ALL_PROXY: 'http://127.0.0.1:9'
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  export no_proxy="$NO_PROXY" https_proxy="$HTTPS_PROXY" http_proxy="$HTTP_PROXY" all_proxy="$ALL_PROXY"
+                  if [[ "$PROOF_NAME" == 'atmos-native' ]]; then ulimit -v 2097152; fi
+                  python - <<'PY' 2>&1 | tee "$RUNNER_TEMP/atmos141-first-offline-proof/unittest.log"
+                  import json, os, sys, unittest
+                  from pathlib import Path
+                  directory, expected = os.environ['PROOF_SUITE'], int(os.environ['PROOF_EXPECTED'])
+                  # These are genuinely separate production dependency closures.
+                  if os.environ['PROOF_NAME'] == 'atmos-native':
+                      import eccodes
+                      print('Actual ecCodes API:', eccodes.codes_get_api_version())
+                  suite = unittest.TestLoader().discover(directory, pattern='test_*.py')
+                  count = suite.countTestCases()
+                  if count != expected:
+                      raise SystemExit(f'Unexpected suite cardinality: {directory}: {count} != {expected}')
+                  result = unittest.TextTestRunner(verbosity=2).run(suite)
+                  forbidden = {'xarray', 'netCDF4', 'h5py', 'rasterio'} if os.environ['PROOF_NAME'] == 'atmos-native' else {'eccodes'}
+                  unexpected_imports = sorted(forbidden.intersection(sys.modules))
+                  libraries = sorted({line.split()[-1] for line in Path('/proc/self/maps').read_text().splitlines() if '.so' in line and '/' in line})
+                  evidence = Path(os.environ['RUNNER_TEMP'], 'atmos141-first-offline-proof')
+                  (evidence / 'loaded-libraries.json').write_text(json.dumps(libraries, indent=2)+'\n')
+                  (evidence / 'imported-modules.json').write_text(json.dumps(sorted(sys.modules), indent=2)+'\n')
+                  report = {'source_sha': os.environ['PROOF_SOURCE_SHA'], 'control_sha': os.environ['GITHUB_SHA'],
+                            'name': os.environ['PROOF_NAME'], 'suite': directory, 'expected': expected,
+                            'run': result.testsRun, 'failures': len(result.failures), 'errors': len(result.errors),
+                            'skipped': len(result.skipped), 'unexpected_imports': unexpected_imports,
+                            'assertions_success': result.wasSuccessful(), 'process_exit': 'pending'}
+                  (evidence / 'result.json').write_text(json.dumps(report, indent=2)+'\n')
+                  if not result.wasSuccessful() or result.skipped or result.testsRun != expected or unexpected_imports:
+                      raise SystemExit(1)
+                  PY
+                  # This file only exists after Python itself returned 0. No exit masking.
+                  printf '0\n' > "$RUNNER_TEMP/atmos141-first-offline-proof/process-exit.txt"
+            - name: Preserve exact source packages and logs on every outcome
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: atmos141-first-offline-${{ matrix.name }}-${{ github.run_id }}
+                  path: ${{ runner.temp }}/atmos141-first-offline-proof
+                  if-no-files-found: warn
+                  retention-days: 14
