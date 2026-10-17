@@ -55,7 +55,7 @@ class ProductionContextTests(unittest.TestCase):
                           'ref: ${{ github.sha }}','persist-credentials: false'):
                 self.assertIn(value,block)
             if name!='publish':self.assertNotIn('contents: write',block)
-        publish=source.split('  publish:\n',1)[1]
+        publish=re.search(r'(?ms)^  publish:\n(.*)\Z',source).group(1)
         for value in ('needs: generate','inputs.allow_provider_downloads == true',
                       'inputs.publish == true','contents: write',
                       'name: atmos141-production-bundle-${{ inputs.dataset }}-${{ github.run_id }}',
@@ -66,6 +66,25 @@ class ProductionContextTests(unittest.TestCase):
             self.assertNotIn(value,publish)
         self.assertEqual(hashlib.sha256((ROOT/'scripts/publish_dataset.py').read_bytes()).hexdigest(),
                          runner.PROVEN_FILES['scripts/publish_dataset.py'])
+        spec=importlib.util.spec_from_file_location('_production_gate_fixture',ROOT/'scripts/publisher-tests/test_release_gate.py')
+        gate=importlib.util.module_from_spec(spec);spec.loader.exec_module(gate)
+        with tempfile.TemporaryDirectory() as directory:
+            directory=Path(directory)
+            for original in (ROOT/'.github/workflows').glob('*.yml'):
+                (directory/original.name).write_text(original.read_text())
+            with patch.object(gate,'WORKFLOWS_DIR',directory):
+                check=gate.PublisherReleaseGateTests('test_every_workflow_is_least_privilege_pinned_and_on_one_runner')
+                check.test_every_workflow_is_least_privilege_pinned_and_on_one_runner()
+                reviewed=directory/'atmos-reviewed-production-once.yml'
+                impostor=directory/'unreviewed-atmos-writer.yml'
+                reviewed.rename(impostor)
+                with self.assertRaises(AssertionError):
+                    check.test_every_workflow_is_least_privilege_pinned_and_on_one_runner()
+                impostor.rename(reviewed)
+                reviewed.write_text(source.replace('contents: write','contents: write\n      issues: write'))
+                with self.assertRaises(AssertionError):
+                    check.test_every_workflow_is_least_privilege_pinned_and_on_one_runner()
+
 
     def test_new_workflow_and_real_master_producer_are_admitted_without_overrides(self):
         env=environment();before=dict(env)
