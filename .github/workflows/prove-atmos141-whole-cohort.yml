@@ -33,7 +33,6 @@ jobs:
       ATMOS_DATASET: ${{ matrix.dataset }}
       ATMOS_RUN_UTC: ${{ matrix.runUtc }}
       IFS_SOURCE: ${{ matrix.ifsSource }}
-      EVIDENCE_DIR: ${{ runner.temp }}/atmos141-whole-cohort/${{ matrix.dataset }}
       PYTHONFAULTHANDLER: "1"
       OPENBLAS_NUM_THREADS: "1"
       OMP_NUM_THREADS: "1"
@@ -54,7 +53,10 @@ jobs:
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           test "$GITHUB_SHA" = "$CONTROL_SHA"
           test -z "$(git status --porcelain)"
+          EVIDENCE_DIR="$RUNNER_TEMP/atmos141-whole-cohort/$ATMOS_DATASET"
+          export EVIDENCE_DIR
           test ! -e "$EVIDENCE_DIR"
+          printf 'EVIDENCE_DIR=%s\n' "$EVIDENCE_DIR" >> "$GITHUB_ENV"
           mkdir -p "$EVIDENCE_DIR"
           printf '%s\n' "$SOURCE_SHA" > "$EVIDENCE_DIR/source.txt"
           printf '%s\n' "$CONTROL_SHA" > "$EVIDENCE_DIR/control.txt"
