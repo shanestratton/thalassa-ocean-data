@@ -71,7 +71,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test -z "$(git status --porcelain)"
           git merge-base --is-ancestor b60f8796429d2c71f95790ece690cf52202e90e8 HEAD
-          printf '%s  %s\n' '56d7953aee7d9227dca1dfab273639e00d587e02f770610615a7584bf01c12f8' scripts/atmos_production_runner.py | sha256sum --check --strict
+          printf '%s  %s\n' '01b02f5908eedfbec3afd3ff0fb9ae62c2e7dec93596ef8abcb79b5d7cc761b4' scripts/atmos_production_runner.py | sha256sum --check --strict
           test ! -e "$RUNNER_TEMP/atmos141-production-proof"
           mkdir "$RUNNER_TEMP/atmos141-production-proof"
           printf '%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/atmos141-production-proof/source.txt"
@@ -119,7 +119,7 @@ jobs:
           report={'source':os.environ['GITHUB_SHA'],'suite':directory,'run':result.testsRun,'skipped':len(result.skipped),'pass':True}
           if os.environ['PROOF_NAME']=='cmems-source':
               extra=unittest.TestLoader().discover('scripts/atmos-production-tests',pattern='test_*.py')
-              assert extra.countTestCases()==22
+              assert extra.countTestCases()==23
               extra_result=unittest.TextTestRunner(verbosity=2).run(extra)
               assert extra_result.wasSuccessful() and not extra_result.skipped
               report['newProductionCases']=extra_result.testsRun
@@ -167,7 +167,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s  %s\n' '56d7953aee7d9227dca1dfab273639e00d587e02f770610615a7584bf01c12f8' scripts/atmos_production_runner.py | sha256sum --check --strict
+          printf '%s  %s\n' '01b02f5908eedfbec3afd3ff0fb9ae62c2e7dec93596ef8abcb79b5d7cc761b4' scripts/atmos_production_runner.py | sha256sum --check --strict
           EVIDENCE_DIR="$RUNNER_TEMP/atmos141-production/$GITHUB_RUN_ID/$ATMOS_DATASET"
           test ! -e "$EVIDENCE_DIR"
           mkdir -p "$EVIDENCE_DIR"

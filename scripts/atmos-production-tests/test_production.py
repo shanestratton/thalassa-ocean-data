@@ -38,6 +38,35 @@ def environment():
 
 
 class ProductionContextTests(unittest.TestCase):
+    def test_exact_new_writer_path_retains_all_concrete_workflow_admission_guards(self):
+        source=(ROOT/'.github/workflows/atmos-reviewed-production-once.yml').read_text()
+        self.assertEqual(source.count('default: false'),2)
+        self.assertNotRegex(source,r'(?m)^\s*(?:schedule|push|pull_request|workflow_run):')
+        self.assertNotIn('SOURCE_SHA:',source);self.assertNotIn('CONTROL_SHA:',source)
+        self.assertEqual(source.count('contents: write'),1)
+        for name in ('proof','generate','publish'):
+            import re
+            match=re.search(r'(?ms)^  '+name+r':\n(.*?)(?=^  [a-z]+:|\Z)',source)
+            self.assertIsNotNone(match)
+            block=match.group(1)
+            for value in ("github.actor == 'shanestratton'","github.run_attempt == 1",
+                          "github.repository == 'shanestratton/thalassa-ocean-data'",
+                          "github.ref == 'refs/heads/master'","github.event_name == 'workflow_dispatch'",
+                          'ref: ${{ github.sha }}','persist-credentials: false'):
+                self.assertIn(value,block)
+            if name!='publish':self.assertNotIn('contents: write',block)
+        publish=source.split('  publish:\n',1)[1]
+        for value in ('needs: generate','inputs.allow_provider_downloads == true',
+                      'inputs.publish == true','contents: write',
+                      'name: atmos141-production-bundle-${{ inputs.dataset }}-${{ github.run_id }}',
+                      'scripts/publish_dataset.py --dataset "$ATMOS_DATASET"',
+                      'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"'):
+            self.assertIn(value,publish)
+        for value in ('pip install','SOURCE_SHA:','CONTROL_SHA:','COPERNICUS_'):
+            self.assertNotIn(value,publish)
+        self.assertEqual(hashlib.sha256((ROOT/'scripts/publish_dataset.py').read_bytes()).hexdigest(),
+                         runner.PROVEN_FILES['scripts/publish_dataset.py'])
+
     def test_new_workflow_and_real_master_producer_are_admitted_without_overrides(self):
         env=environment();before=dict(env)
         identity=runner.admit_context(env,SHA,True)
