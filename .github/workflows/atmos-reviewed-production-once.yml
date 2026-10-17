@@ -55,13 +55,13 @@ jobs:
       OMP_NUM_THREADS: '1'
     steps:
       - name: Checkout actual immutable master producer
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Python3.11.15
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.11.15'
       - name: Verify production authority and preserve exact identity
@@ -131,7 +131,7 @@ jobs:
           test "${statuses[0]}" = 0 && test "${statuses[1]}" = 0
       - name: Preserve proof on every outcome
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: atmos141-production-proof-${{ matrix.name }}-${{ github.run_id }}
           path: ${{ runner.temp }}/atmos141-production-proof
@@ -154,13 +154,13 @@ jobs:
       OMP_NUM_THREADS: '1'
     steps:
       - name: Checkout same actual immutable producer
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Python3.11.15
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.11.15'
       - name: Prepare fresh evidence without a job-env runner context
@@ -191,7 +191,7 @@ jobs:
           test "${statuses[0]}" = 0 && test "${statuses[1]}" = 0
       - name: Preserve observer and any partial frames on every outcome
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: atmos141-production-evidence-${{ inputs.dataset }}-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}
@@ -200,7 +200,7 @@ jobs:
           compression-level: 0
           overwrite: false
       - name: Seal only successful admitted bundle for same-run publisher
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: atmos141-production-bundle-${{ inputs.dataset }}-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}/output/bundle/
@@ -218,17 +218,17 @@ jobs:
       contents: write
     steps:
       - name: Checkout same immutable publisher source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Python3.11.15 without native/provider dependencies
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.11.15'
       - name: Restore only same-run sealed bundle
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: atmos141-production-bundle-${{ inputs.dataset }}-${{ github.run_id }}
           path: ${{ runner.temp }}/atmos141-publish-bundle
@@ -250,7 +250,7 @@ jobs:
           test "${statuses[0]}" = 0 && test "${statuses[1]}" = 0
       - name: Preserve publication outcome even on refusal
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: atmos141-production-publish-${{ inputs.dataset }}-${{ github.run_id }}
           path: ${{ runner.temp }}/atmos141-publish-proof
