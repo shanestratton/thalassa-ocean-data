@@ -155,8 +155,9 @@ def ifs_range(text: str, run: datetime, offset: int) -> tuple[int, int]:
     return matches[0]
 
 
-def sample_original(values: Sequence[float], metadata: Mapping[str, Any], dataset: str,
-                    field: str, run: datetime, offset: int) -> tuple[array, bytes]:
+def admit_original_metadata(metadata: Mapping[str, Any], dataset: str, field: str,
+                            run: datetime, offset: int) -> None:
+    """Original guards, before any native value-array expansion."""
     validate_run(dataset, run)
     spec = ATMOS_DATASETS[dataset]
     _require(field in spec['fields'], 'wrong model field')
@@ -185,9 +186,14 @@ def sample_original(values: Sequence[float], metadata: Mapping[str, Any], datase
     # Unit spellings are ecCodes' own units, never inferred from numerical magnitude.
     acceptable_units = {'m/s': ('m s**-1', 'm s-1', 'm/s'), 'm': ('m',), 'Pa': ('Pa',), 'K': ('K',)}
     _require(metadata.get('units') in acceptable_units[FIELDS[field][1]], 'original GRIB units mismatch')
+    _require(metadata.get('bitmapPresent') in (0, 1), 'original GRIB bitmap flag missing')
+
+
+def sample_original(values: Sequence[float], metadata: Mapping[str, Any], dataset: str,
+                    field: str, run: datetime, offset: int) -> tuple[array, bytes]:
+    admit_original_metadata(metadata, dataset, field, run, offset)
     _require(len(values) == 1440 * 721, 'original GRIB value cardinality')
     missing = metadata.get('missingValue')
-    _require(metadata.get('bitmapPresent') in (0, 1), 'original GRIB bitmap flag missing')
     has_missing = metadata.get('bitmapPresent') == 1
     output = array('f')
     mask = bytearray()
@@ -208,23 +214,30 @@ def sample_original(values: Sequence[float], metadata: Mapping[str, Any], datase
     return output, bytes(mask)
 
 
+def read_original_metadata(handle, codes) -> dict[str, Any]:
+    """Fixed scalar metadata only; no values or native grid allocation."""
+    integer_keys = ['edition', 'centre', 'Ni', 'Nj', 'numberOfPoints',
+                    'iScansNegatively', 'jScansPositively', 'jPointsAreConsecutive', 'alternativeRowScanning',
+                    'dataDate', 'dataTime', 'validityDate', 'validityTime', 'startStep', 'endStep',
+                    'stepUnits', 'discipline', 'parameterCategory', 'parameterNumber',
+                    'typeOfFirstFixedSurface', 'level', 'paramId', 'bitmapPresent']
+    double_keys = ['iDirectionIncrementInDegrees', 'jDirectionIncrementInDegrees',
+                   'latitudeOfFirstGridPointInDegrees', 'latitudeOfLastGridPointInDegrees',
+                   'longitudeOfFirstGridPointInDegrees', 'longitudeOfLastGridPointInDegrees', 'missingValue']
+    metadata = {key: codes.codes_get_long(handle, key) for key in integer_keys}
+    metadata.update({key: codes.codes_get_double(handle, key) for key in double_keys})
+    metadata.update({key: codes.codes_get_string(handle, key) for key in ['gridType', 'stepType', 'units']})
+    return metadata
+
+
 def decode_message(raw: bytes, dataset: str, field: str, run: datetime, offset: int):
     _require(16 <= len(raw) <= MAX_FIELD_BYTES and raw[:4] == b'GRIB' and raw[-4:] == b'7777'
              and int.from_bytes(raw[8:16], 'big') == len(raw), 'not exactly one bounded GRIB2 message')
     import eccodes
     handle = eccodes.codes_new_from_message(raw)
     try:
-        integer_keys = ['edition', 'centre', 'Ni', 'Nj', 'numberOfPoints',
-                        'iScansNegatively', 'jScansPositively', 'jPointsAreConsecutive', 'alternativeRowScanning',
-                        'dataDate', 'dataTime', 'validityDate', 'validityTime', 'startStep', 'endStep',
-                        'stepUnits', 'discipline', 'parameterCategory', 'parameterNumber',
-                        'typeOfFirstFixedSurface', 'level', 'paramId', 'bitmapPresent']
-        double_keys = ['iDirectionIncrementInDegrees', 'jDirectionIncrementInDegrees',
-                       'latitudeOfFirstGridPointInDegrees', 'latitudeOfLastGridPointInDegrees',
-                       'longitudeOfFirstGridPointInDegrees', 'longitudeOfLastGridPointInDegrees', 'missingValue']
-        metadata = {key: eccodes.codes_get_long(handle, key) for key in integer_keys}
-        metadata.update({key: eccodes.codes_get_double(handle, key) for key in double_keys})
-        metadata.update({key: eccodes.codes_get_string(handle, key) for key in ['gridType', 'stepType', 'units']})
+        metadata = read_original_metadata(handle, eccodes)
+        admit_original_metadata(metadata, dataset, field, run, offset)
         return sample_original(eccodes.codes_get_values(handle), metadata, dataset, field, run, offset)
     finally:
         eccodes.codes_release(handle)

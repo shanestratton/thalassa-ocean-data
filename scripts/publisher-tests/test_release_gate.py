@@ -451,6 +451,12 @@ class PublisherReleaseGateTests(unittest.TestCase):
                 "test_cf_wrong_units_identity_or_orientation_rejected",
                 "test_cf_original_time_calendar_and_unreviewed_dimension_rejected",
             ],
+            "test_atmos_admission.py": [
+                "test_wrong_grid_run_units_level_bitmap_never_expand_native_values",
+                "test_admitted_original_still_expands_once_and_preserves_samples",
+                "test_admitted_metadata_does_not_relax_value_cardinality_or_physical_guards",
+                "test_metadata_read_failure_still_releases_the_native_handle_without_values",
+            ],
         }
         for filename, names in expectations.items():
             with self.subTest(suite=filename):
@@ -463,10 +469,11 @@ class PublisherReleaseGateTests(unittest.TestCase):
                   for path in sorted((REPO_ROOT / "scripts/publisher-tests").glob("test_*.py"))}
         # Original 68 stay pinned, plus held-atmosphere and three bounded-SSH workflow gates.
         self.assertEqual(sum(n for name, n in counts.items()
-                             if name not in {'test_ssh_grid.py', 'test_atmos.py'}), 68 + 1 + 3)
+                             if name not in {'test_ssh_grid.py', 'test_atmos.py', 'test_atmos_admission.py'}), 68 + 1 + 3)
         self.assertEqual(counts['test_ssh_grid.py'], 15)
         self.assertEqual(counts['test_atmos.py'], 15)
-        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15)
+        self.assertEqual(counts['test_atmos_admission.py'], 4)
+        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15 + 4)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(
