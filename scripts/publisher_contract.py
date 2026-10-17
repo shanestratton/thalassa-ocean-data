@@ -21,6 +21,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+from atmos_contract import ATMOS_DATASETS
+
 
 SCHEMA_VERSION = 2
 MANIFEST_NAME = "manifest.json"
@@ -92,6 +94,7 @@ DATASETS: dict[str, dict[str, Any]] = {
         "max_file_bytes": 16 * 1024 * 1024,
     },
 }
+DATASETS.update(ATMOS_DATASETS)
 
 
 class ContractError(ValueError):
@@ -549,6 +552,10 @@ def validate_manifest(
 ) -> None:
     spec = DATASETS.get(expected_dataset)
     _require(spec is not None, "unknown expected dataset")
+    if spec["kind"] == "atmos-scalar":
+        from atmos_contract import validate_atmos_manifest
+        validate_atmos_manifest(manifest, expected_dataset, allow_draft=allow_draft, bundle_dir=bundle_dir)
+        return
     required_root = {
         "schema_version",
         "dataset",
@@ -764,6 +771,12 @@ def validate_publication_freshness(manifest: Mapping[str, Any], now: datetime | 
         _require(data_start <= current_time, f"{dataset_key} source start is in the future")
         _require(data_end >= current_time + timedelta(hours=48), f"{dataset_key} daily forecast coverage is too short")
         _require(data_end <= current_time + timedelta(days=7), f"{dataset_key} source end is implausibly far in the future")
+    elif dataset_key in ATMOS_DATASETS:
+        spec = ATMOS_DATASETS[dataset_key]
+        _require(current_time - timedelta(hours=spec["max_age_hours"]) <= data_start <= current_time,
+                 "atmospheric source is stale or future")
+        _require(data_end == data_start + timedelta(hours=(spec["steps"] - 1) * 6),
+                 "atmospheric horizon incomplete")
     elif dataset_key == "mpa":
         # CAPAD is an infrequently issued registry rather than a forecast. Ten
         # years is a deliberate hard ceiling that catches broken epoch values
@@ -778,6 +791,7 @@ def validate_legacy_v1_bootstrap(manifest: Mapping[str, Any], expected_dataset: 
     """Narrowly recognize the exact rolling v1 shape for one-way v2 migration."""
     spec = DATASETS.get(expected_dataset)
     _require(spec is not None, "unknown legacy dataset")
+    _require(spec["kind"] in {"cmems-binary", "geojson"}, "new scalar datasets have no legacy bootstrap")
     _require(manifest.get("version") == 1 and "schema_version" not in manifest, "not a legacy-v1 manifest")
     parse_legacy_time(manifest.get("generated_at"), "legacy.generated_at")
     if expected_dataset == "mpa":

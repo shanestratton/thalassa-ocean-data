@@ -73,6 +73,25 @@ def step_source(source: str, name_prefix: str) -> str:
 
 
 class PublisherReleaseGateTests(unittest.TestCase):
+    def test_atmospheric_provider_reads_and_publication_are_separately_held(self) -> None:
+        source = read(".github/workflows/atmos-held-pipeline.yml")
+        self.assertIn("workflow_dispatch:", source)
+        self.assertNotRegex(source, r"(?m)^\s*(?:schedule|push|pull_request|workflow_run):")
+        for name in ["allow_provider_downloads", "publish"]:
+            self.assertRegex(source, rf"(?s){name}:\s*\n.*?type: boolean\s*\n\s*default: false")
+        generate = job_source(source, "generate")
+        publish = job_source(source, "publish")
+        self.assertIn("github.ref == 'refs/heads/master' && inputs.allow_provider_downloads == true", generate)
+        self.assertIn("github.ref == 'refs/heads/master' && inputs.allow_provider_downloads == true && inputs.publish == true", publish)
+        self.assertIn("needs: proof", generate)
+        self.assertIn("needs: generate", publish)
+        self.assertNotIn("contents: write", generate)
+        self.assertNotIn("secrets.", source)
+        self.assertNotIn("pip install", publish)
+        self.assertIn("scripts/atmos-native-tests", source)
+        self.assertIn("--require-hashes --only-binary=:all:", generate)
+        self.assertNotRegex(source, r"(?m)^\s*run:.*\$\{\{\s*inputs\.")
+
     def test_every_workflow_is_least_privilege_pinned_and_on_one_runner(self) -> None:
         paths = sorted(WORKFLOWS_DIR.glob("*.yml"))
         self.assertEqual(sum(1 for path in paths if PIPELINE_WORKFLOW.match(path.name)), 7)
@@ -93,7 +112,7 @@ class PublisherReleaseGateTests(unittest.TestCase):
                     self.assertRegex(line, r"@[0-9a-f]{40} # v\d+\.\d+\.\d+\s*$", line)
                 self.assertEqual(len(re.findall(r"(?m)^\s*(?:-\s+)?uses:", code)), len(re.findall(r"(?m)uses:\s*[^@\s]+@", code)))
                 writes = sorted(re.findall(r"([A-Za-z0-9_-]+):\s*write\b", code))
-                expected = ["contents"] if PIPELINE_WORKFLOW.match(path.name) or path.name == "keepalive.yml" else []
+                expected = ["contents"] if PIPELINE_WORKFLOW.match(path.name) or path.name in {"keepalive.yml", "atmos-held-pipeline.yml"} else []
                 self.assertEqual(writes, expected)
                 self.assertNotRegex(code, r"pull_request_target|workflow_run")
 
@@ -375,7 +394,8 @@ class PublisherReleaseGateTests(unittest.TestCase):
             len(re.findall(r"(?m)^\s*def test_", path.read_text()))
             for path in sorted((REPO_ROOT / "scripts/publisher-tests").glob("test_*.py"))
         )
-        self.assertEqual(count, 68)
+        # Original 68 named checks + 15 atmospheric checks + the held-workflow check.
+        self.assertEqual(count, 84)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(
