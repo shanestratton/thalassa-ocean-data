@@ -1,0 +1,90 @@
+name: Atmosphere 141 isolated offline native proof
+
+on:
+    push:
+        branches: ['codex/build-141-atmos-offline-proof']
+        paths: ['.github/workflows/check-atmos141-offline.yml']
+
+permissions:
+    contents: read
+
+concurrency:
+    group: atmos141-isolated-offline-proof
+    cancel-in-progress: false
+
+jobs:
+    offline:
+        if: github.repository == 'shanestratton/thalassa-ocean-data' && github.actor == 'shanestratton' && github.run_attempt == 1
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        env:
+            PROOF_SOURCE_SHA: 9a1774e2c8eb2750e085015542c8fb5b26b0e53d
+        steps:
+            - name: Checkout exact frozen producer source
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  ref: 9a1774e2c8eb2750e085015542c8fb5b26b0e53d
+                  persist-credentials: false
+            - name: Set up Python 3.11.15
+              uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+              with:
+                  python-version: '3.11.15'
+            - name: Record immutable source and control identity
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  test "$(git rev-parse HEAD)" = "$PROOF_SOURCE_SHA"
+                  test -z "$(git status --porcelain)"
+                  mkdir -p "$RUNNER_TEMP/atmos141-offline-proof"
+                  printf '%s\n' "$PROOF_SOURCE_SHA" > "$RUNNER_TEMP/atmos141-offline-proof/source.txt"
+                  printf '%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/atmos141-offline-proof/control.txt"
+                  python --version > "$RUNNER_TEMP/atmos141-offline-proof/python.txt"
+                  sha256sum scripts/atmos_contract.py scripts/atmos_pipeline.py scripts/publisher_contract.py scripts/publisher-tests/test_atmos.py scripts/publisher-tests/test_release_gate.py scripts/atmos-native-tests/test_native_atmos.py scripts/atmos-requirements.lock scripts/cmems-requirements.lock scripts/ssh_grid.py scripts/publisher-tests/test_ssh_grid.py .github/workflows/atmos-held-pipeline.yml > "$RUNNER_TEMP/atmos141-offline-proof/source-sha256.txt"
+            - name: Install reviewed full CMEMS and atmospheric hash-locked wheels
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/cmems-requirements.lock -r scripts/atmos-requirements.lock 2>&1 | tee "$RUNNER_TEMP/atmos141-offline-proof/install.log"
+                  python -m pip check 2>&1 | tee "$RUNNER_TEMP/atmos141-offline-proof/pip-check.txt"
+                  python -m pip freeze > "$RUNNER_TEMP/atmos141-offline-proof/packages.txt"
+            - name: Run all 98 source checks and three actual native fixtures offline
+              env:
+                  NO_PROXY: '127.0.0.1,localhost,::1'
+                  HTTPS_PROXY: 'http://127.0.0.1:9'
+                  HTTP_PROXY: 'http://127.0.0.1:9'
+                  ALL_PROXY: 'http://127.0.0.1:9'
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  export no_proxy="$NO_PROXY" https_proxy="$HTTPS_PROXY" http_proxy="$HTTP_PROXY" all_proxy="$ALL_PROXY"
+                  python - <<'PY' 2>&1 | tee "$RUNNER_TEMP/atmos141-offline-proof/unittest.log"
+                  import json, os, sys, unittest
+                  from pathlib import Path
+                  import eccodes
+                  import xarray
+                  print('Actual ecCodes API:', eccodes.codes_get_api_version())
+                  print('Actual xarray:', xarray.__version__)
+                  results = []
+                  for directory, expected in [('scripts/publisher-tests', 98), ('scripts/atmos-native-tests', 3)]:
+                      suite = unittest.defaultTestLoader.discover(directory, pattern='test_*.py')
+                      count = suite.countTestCases()
+                      if count != expected:
+                          raise SystemExit(f'Unexpected suite cardinality: {directory}: {count} != {expected}')
+                      result = unittest.TextTestRunner(verbosity=2).run(suite)
+                      results.append({'suite': directory, 'expected': expected, 'run': result.testsRun,
+                                      'failures': len(result.failures), 'errors': len(result.errors),
+                                      'skipped': len(result.skipped), 'success': result.wasSuccessful()})
+                  report = {'source_sha': os.environ['PROOF_SOURCE_SHA'], 'control_sha': os.environ['GITHUB_SHA'],
+                            'eccodes_api': eccodes.codes_get_api_version(), 'suites': results}
+                  Path(os.environ['RUNNER_TEMP'], 'atmos141-offline-proof', 'result.json').write_text(json.dumps(report, indent=2)+'\n')
+                  if any(not item['success'] or item['skipped'] or item['run'] != item['expected'] for item in results):
+                      raise SystemExit(1)
+                  PY
+            - name: Preserve exact source packages and logs on every outcome
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: atmos141-offline-${{ github.run_id }}
+                  path: ${{ runner.temp }}/atmos141-offline-proof
+                  if-no-files-found: warn
+                  retention-days: 14
