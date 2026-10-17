@@ -66,7 +66,7 @@ jobs:
                   print('Actual xarray:', xarray.__version__)
                   results = []
                   for directory, expected in [('scripts/publisher-tests', 98), ('scripts/atmos-native-tests', 3)]:
-                      suite = unittest.defaultTestLoader.discover(directory, pattern='test_*.py')
+                      suite = unittest.TestLoader().discover(directory, pattern='test_*.py')
                       count = suite.countTestCases()
                       if count != expected:
                           raise SystemExit(f'Unexpected suite cardinality: {directory}: {count} != {expected}')
