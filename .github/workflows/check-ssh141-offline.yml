@@ -1,4 +1,4 @@
-name: SSH 141 isolated offline publisher proof
+name: SSH 141 composed manual publisher offline proof
 on:
     push:
         branches: ['codex/build-141-ssh-observations']
@@ -53,7 +53,7 @@ jobs:
                   git rev-parse HEAD > "$RUNNER_TEMP/ssh141-offline-proof/source.txt"
                   python --version > "$RUNNER_TEMP/ssh141-offline-proof/python.txt"
                   python -m pip freeze > "$RUNNER_TEMP/ssh141-offline-proof/packages.txt"
-                  sha256sum scripts/publisher_contract.py scripts/ssh_grid.py scripts/cmems-ssh-pipeline/pipeline.py scripts/publisher-tests/test_ssh_grid.py scripts/publisher-tests/fixtures/ssh-original-zarr-metadata.json scripts/cmems-requirements.lock scripts/mpa-pipeline/requirements.txt > "$RUNNER_TEMP/ssh141-offline-proof/source-sha256.txt"
+                  sha256sum scripts/publisher_contract.py scripts/ssh_grid.py scripts/cmems-ssh-pipeline/pipeline.py scripts/publisher-tests/test_ssh_grid.py scripts/publisher-tests/fixtures/ssh-original-zarr-metadata.json scripts/cmems-requirements.lock scripts/mpa-pipeline/requirements.txt scripts/atmos_contract.py scripts/atmos_pipeline.py scripts/publisher-tests/test_atmos.py scripts/publisher-tests/test_release_gate.py scripts/publish_dataset.py .github/workflows/ssh-observations-publisher.yml .github/workflows/atmos-held-pipeline.yml > "$RUNNER_TEMP/ssh141-offline-proof/source-sha256.txt"
                   python -m unittest discover -v -s scripts/publisher-tests -p 'test_*.py' 2>&1 | tee "$RUNNER_TEMP/ssh141-offline-proof/unittest.log"
             - name: Preserve exact offline evidence on every outcome
               if: always()

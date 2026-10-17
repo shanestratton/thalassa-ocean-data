@@ -73,6 +73,41 @@ def step_source(source: str, name_prefix: str) -> str:
 
 
 class PublisherReleaseGateTests(unittest.TestCase):
+    def test_ssh_manual_generator_has_original_bounds_and_explicit_provider_gate(self) -> None:
+        source = read('.github/workflows/ssh-observations-publisher.yml')
+        generate = job_source(source, 'generate')
+        self.assertIn('workflow_dispatch:', source)
+        self.assertEqual(source.count('default: false'), 2)
+        self.assertNotIn('schedule:', source)
+        self.assertNotIn('push:', source)
+        self.assertTrue(includes_all(generate, [
+            "github.ref == 'refs/heads/master'", 'inputs.allow_provider_downloads == true',
+            'contents: read', 'persist-credentials: false', "python-version: '3.11.15'",
+            '--require-hashes --only-binary=:all:', 'scripts/cmems-requirements.lock',
+            'ulimit -v 3145728', 'ulimit -f 131072', '600s', '-le 268435456',
+            'test ! -e /tmp/cmems-ssh', 'name: ssh-${{ github.run_id }}',
+            'path: /tmp/cmems-ssh/bundle/', 'if-no-files-found: error',
+        ]))
+        self.assertTrue(includes_in_order(generate, [
+            'Prove unchanged contracts without provider access',
+            "python -m unittest discover -v -s scripts/publisher-tests -p 'test_*.py'",
+            'Read one bounded original daily map', 'python scripts/cmems-ssh-pipeline/pipeline.py',
+            'Preserve only the admitted display bundle',
+        ]))
+        self.assertNotIn('contents: write', generate)
+        self.assertNotIn('GH_TOKEN:', generate)
+
+    def test_ssh_writer_is_same_run_and_has_no_scientific_or_provider_credentials(self) -> None:
+        publish = job_source(read('.github/workflows/ssh-observations-publisher.yml'), 'publish')
+        self.assertTrue(includes_all(publish, [
+            "github.ref == 'refs/heads/master'", 'inputs.publish == true', 'needs: generate',
+            'contents: write', 'persist-credentials: false', 'name: ssh-${{ github.run_id }}',
+            'python scripts/publish_dataset.py --dataset ssh --bundle /tmp/publisher-bundle',
+        ]))
+        for forbidden in ['COPERNICUS_MARINE_', 'pip install', 'ecCodes', 'copernicusmarine.subset']:
+            self.assertNotIn(forbidden, publish)
+        self.assertEqual(publish.count('--dataset ssh'), 1)
+
     def test_atmospheric_provider_reads_and_publication_are_separately_held(self) -> None:
         source = read(".github/workflows/atmos-held-pipeline.yml")
         self.assertIn("workflow_dispatch:", source)
@@ -112,7 +147,7 @@ class PublisherReleaseGateTests(unittest.TestCase):
                     self.assertRegex(line, r"@[0-9a-f]{40} # v\d+\.\d+\.\d+\s*$", line)
                 self.assertEqual(len(re.findall(r"(?m)^\s*(?:-\s+)?uses:", code)), len(re.findall(r"(?m)uses:\s*[^@\s]+@", code)))
                 writes = sorted(re.findall(r"([A-Za-z0-9_-]+):\s*write\b", code))
-                expected = ["contents"] if PIPELINE_WORKFLOW.match(path.name) or path.name in {"keepalive.yml", "atmos-held-pipeline.yml"} else []
+                expected = ["contents"] if PIPELINE_WORKFLOW.match(path.name) or path.name in {"keepalive.yml", "atmos-held-pipeline.yml", "ssh-observations-publisher.yml"} else []
                 self.assertEqual(writes, expected)
                 self.assertNotRegex(code, r"pull_request_target|workflow_run")
 
@@ -404,12 +439,12 @@ class PublisherReleaseGateTests(unittest.TestCase):
         # plus the MPA sliver-area and classification tests (68).
         counts = {path.name: len(re.findall(r"(?m)^\s*def test_", path.read_text()))
                   for path in sorted((REPO_ROOT / "scripts/publisher-tests").glob("test_*.py"))}
-        # Original 68 stay pinned, plus the one new held-atmosphere workflow gate.
+        # Original 68 stay pinned, plus held-atmosphere and two bounded-SSH workflow gates.
         self.assertEqual(sum(n for name, n in counts.items()
-                             if name not in {'test_ssh_grid.py', 'test_atmos.py'}), 68 + 1)
+                             if name not in {'test_ssh_grid.py', 'test_atmos.py'}), 68 + 1 + 2)
         self.assertEqual(counts['test_ssh_grid.py'], 15)
         self.assertEqual(counts['test_atmos.py'], 15)
-        self.assertEqual(sum(counts.values()), 68 + 1 + 15 + 15)
+        self.assertEqual(sum(counts.values()), 68 + 1 + 2 + 15 + 15)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(

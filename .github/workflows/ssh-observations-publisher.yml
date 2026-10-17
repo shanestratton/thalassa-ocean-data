@@ -1,0 +1,119 @@
+name: Daily SSH Observations - Trusted Release
+# A daily schedule follows separate successful public readback.
+on:
+    workflow_dispatch:
+        inputs:
+            allow_provider_downloads:
+                description: Read one bounded original daily DUACS map
+                type: boolean
+                default: false
+            publish:
+                description: Publish the same-run verified display bundle
+                type: boolean
+                default: false
+permissions: {}
+concurrency:
+    group: publisher-cmems-ssh
+    cancel-in-progress: false
+jobs:
+    generate:
+        if: github.repository == 'shanestratton/thalassa-ocean-data' && github.ref == 'refs/heads/master' && inputs.allow_provider_downloads == true
+        permissions:
+            contents: read
+        runs-on: ubuntu-24.04
+        timeout-minutes: 15
+        env:
+            OPENBLAS_NUM_THREADS: '1'
+            OMP_NUM_THREADS: '1'
+        steps:
+            - name: Checkout exact source-proof commit
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  ref: ${{ github.sha }}
+                  persist-credentials: false
+            - name: Set up Python 3.11.15
+              uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+              with:
+                  python-version: '3.11.15'
+            - name: Install existing hash-locked scientific wheels
+              run: |
+                  python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/cmems-requirements.lock
+            - name: Prove unchanged contracts without provider access
+              env:
+                  NO_PROXY: '127.0.0.1,localhost,::1'
+                  HTTPS_PROXY: 'http://127.0.0.1:9'
+                  HTTP_PROXY: 'http://127.0.0.1:9'
+                  ALL_PROXY: 'http://127.0.0.1:9'
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+                  test -z "$(git status --porcelain)"
+                  export no_proxy="$NO_PROXY" https_proxy="$HTTPS_PROXY" http_proxy="$HTTP_PROXY" all_proxy="$ALL_PROXY"
+                  mkdir -p "$RUNNER_TEMP/ssh141-source-proof"
+                  git rev-parse HEAD > "$RUNNER_TEMP/ssh141-source-proof/source.txt"
+                  python --version > "$RUNNER_TEMP/ssh141-source-proof/python.txt"
+                  python -m pip freeze > "$RUNNER_TEMP/ssh141-source-proof/packages.txt"
+                  sha256sum scripts/publisher_contract.py scripts/ssh_grid.py scripts/cmems-ssh-pipeline/pipeline.py scripts/cmems-requirements.lock > "$RUNNER_TEMP/ssh141-source-proof/source-sha256.txt"
+                  python -m unittest discover -v -s scripts/publisher-tests -p 'test_*.py' 2>&1 | tee "$RUNNER_TEMP/ssh141-source-proof/offline.log"
+            - name: Read one bounded original daily map
+              env:
+                  COPERNICUS_MARINE_USERNAME: ${{ secrets.COPERNICUS_MARINE_USERNAME }}
+                  COPERNICUS_MARINE_PASSWORD: ${{ secrets.COPERNICUS_MARINE_PASSWORD }}
+                  CMEMS_OUT_DIR: /tmp/cmems-ssh
+              shell: bash
+              run: |
+                  set -euo pipefail
+                  test ! -e /tmp/cmems-ssh
+                  ulimit -v 3145728
+                  ulimit -f 131072
+                  timeout --signal=TERM --kill-after=10s 600s /usr/bin/time -v -o "$RUNNER_TEMP/ssh141-source-proof/resources.txt" python scripts/cmems-ssh-pipeline/pipeline.py > "$RUNNER_TEMP/ssh141-source-proof/generator.log"
+                  test "$(du -sb /tmp/cmems-ssh | cut -f1)" -le 268435456
+                  cp /tmp/cmems-ssh/SOURCE_METADATA.json "$RUNNER_TEMP/ssh141-source-proof/SOURCE_METADATA.json"
+                  sha256sum /tmp/cmems-ssh/duacs-one-day.nc /tmp/cmems-ssh/source.bin > "$RUNNER_TEMP/ssh141-source-proof/native-sha256.txt"
+            - name: Preserve bounded text proof on every outcome
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: ssh141-original-source-text-${{ github.run_id }}
+                  path: ${{ runner.temp }}/ssh141-source-proof
+                  if-no-files-found: warn
+                  retention-days: 14
+            - name: Preserve only the admitted display bundle
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: ssh-${{ github.run_id }}
+                  path: /tmp/cmems-ssh/bundle/
+                  if-no-files-found: error
+                  retention-days: 2
+                  compression-level: 0
+
+    publish:
+        if: github.ref == 'refs/heads/master' && inputs.publish == true
+        needs: generate
+        runs-on: ubuntu-24.04
+        timeout-minutes: 30
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout publisher commit
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Set up publisher Python 3.11.15
+              uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+              with:
+                  python-version: '3.11.15'
+
+            - name: Restore sealed bundle
+              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+              with:
+                  name: ssh-${{ github.run_id }}
+                  path: /tmp/publisher-bundle
+
+            - name: Verify remote assets and publish manifest last
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GITHUB_REPOSITORY: ${{ github.repository }}
+              run: python scripts/publish_dataset.py --dataset ssh --bundle /tmp/publisher-bundle
