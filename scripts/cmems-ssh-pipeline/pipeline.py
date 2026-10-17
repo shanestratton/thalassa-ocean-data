@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import os
 import sys
@@ -135,8 +136,14 @@ def main() -> None:
                                data_times=[stamp], bundle_dir=output / 'bundle',
                                provenance=producer_provenance(), metadata=SSH_METADATA)
     (output / 'SOURCE_METADATA.json').write_bytes(encoded)
+    with native.open('rb') as native_file:
+        native_sha256 = hashlib.file_digest(native_file, 'sha256').hexdigest()
     print(json.dumps({'source_date': stamp, 'dataset': DATASET_ID, 'dataset_version': DATASET_VERSION,
-                      'native_bytes': native.stat().st_size, 'grid': summary, 'draft': str(draft)}))
+                      'native_bytes': native.stat().st_size,
+                      'native_sha256': native_sha256,
+                      'metadata_sha256': hashlib.sha256(encoded).hexdigest(),
+                      'binary_sha256': hashlib.sha256(binary.read_bytes()).hexdigest(),
+                      'grid': summary, 'draft': str(draft)}))
 
 
 if __name__ == '__main__':

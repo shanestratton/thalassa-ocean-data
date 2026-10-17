@@ -1,8 +1,10 @@
 Daily DUACS mapped altimetry, build 141-08
 =======================================
 
-This producer is source-staged. No workflow installs a timer or runs it against
-Copernicus, and no SSH assets or public manifest have been published yet.
+This producer is source-staged. A separately reviewed, single feature-branch
+proof job can read one genuine daily map with the existing Copernicus account.
+No workflow installs a timer, publishes SSH release assets or changes a public
+manifest. App activation remains off pending verified public publication.
 
 The exact non-demo dataset is
 `cmems_obs-sl_glo_phy-ssh_nrt_allsat-l4-duacs-0.125deg_P1D`, version `202506`,
