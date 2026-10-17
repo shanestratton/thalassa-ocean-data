@@ -370,6 +370,7 @@ class PublisherReleaseGateTests(unittest.TestCase):
                 "test_nonfinite_and_nonphysical_never_publish",
                 "test_stable_four_channel_ice_and_coast_mask",
                 "test_freshness_has_no_future_forecast_exception",
+                "test_sdk_selection_uses_original_cell_centres_not_world_edges",
                 "test_original_cf_packed_values_fill_ice_and_bounds_dimension",
                 "test_cf_wrong_units_identity_or_orientation_rejected",
                 "test_cf_original_time_calendar_and_unreviewed_dimension_rejected",
@@ -385,8 +386,8 @@ class PublisherReleaseGateTests(unittest.TestCase):
         counts = {path.name: len(re.findall(r"(?m)^\s*def test_", path.read_text()))
                   for path in sorted((REPO_ROOT / "scripts/publisher-tests").glob("test_*.py"))}
         self.assertEqual(sum(n for name, n in counts.items() if name != 'test_ssh_grid.py'), 68)
-        self.assertEqual(counts['test_ssh_grid.py'], 14)
-        self.assertEqual(sum(counts.values()), 82)
+        self.assertEqual(counts['test_ssh_grid.py'], 15)
+        self.assertEqual(sum(counts.values()), 83)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(

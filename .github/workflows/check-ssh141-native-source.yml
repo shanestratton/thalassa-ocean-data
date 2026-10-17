@@ -1,4 +1,4 @@
-name: SSH 141 bounded original-source proof
+name: SSH 141 bounded original cell-centre source proof
 on:
     push:
         branches: ['codex/build-141-ssh-observations']

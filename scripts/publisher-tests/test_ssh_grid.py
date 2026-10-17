@@ -154,6 +154,13 @@ class SshGridTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             pipeline.source_date(body, self.day + timedelta(days=1))
 
+    def test_sdk_selection_uses_original_cell_centres_not_world_edges(self):
+        raw = json.loads((SCRIPTS / 'publisher-tests/fixtures/ssh-original-zarr-metadata.json').read_text())['metadata']
+        for axis in ['latitude', 'longitude']:
+            attrs = raw[axis + '/.zattrs']
+            self.assertEqual(pipeline.SUBSET_BOUNDS['minimum_' + axis], attrs['valid_min'])
+            self.assertEqual(pipeline.SUBSET_BOUNDS['maximum_' + axis], attrs['valid_max'])
+
     def test_stale_observation_is_not_redated(self):
         with self.assertRaises(ValueError):
             pipeline.source_date(self.catalog(), self.day + timedelta(days=5))

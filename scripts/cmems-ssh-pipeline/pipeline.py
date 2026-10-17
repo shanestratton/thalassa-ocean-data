@@ -18,6 +18,8 @@ from ssh_grid import DATASET_ID, DATASET_VERSION, PRODUCT_ID, SSH_METADATA, VARI
 CATALOG_URL = ('https://stac.marine.copernicus.eu/metadata/' + PRODUCT_ID + '/' +
                DATASET_ID + '_' + DATASET_VERSION + '/dataset.stac.json')
 MAX_NATIVE_BYTES = 128 * 1024 * 1024
+SUBSET_BOUNDS = {'minimum_longitude': -179.9375, 'maximum_longitude': 179.9375,
+                 'minimum_latitude': -89.9375, 'maximum_latitude': 89.9375}
 UNITS = {'adt': 'm', 'sla': 'm', 'ugos': 'm/s', 'vgos': 'm/s'}
 STANDARDS = {
     'adt': 'sea_surface_height_above_geoid',
@@ -120,7 +122,7 @@ def main() -> None:
     copernicusmarine.subset(
         dataset_id=DATASET_ID, dataset_version=DATASET_VERSION,
         variables=[*VARIABLES, 'flag_ice'], username=username, password=password,
-        minimum_longitude=-180, maximum_longitude=180, minimum_latitude=-90, maximum_latitude=90,
+        **SUBSET_BOUNDS,
         start_datetime=chosen, end_datetime=chosen, coordinates_selection_method='strict-inside',
         output_directory=str(output), output_filename=native.name, overwrite=False,
         disable_progress_bar=True, raise_if_updating=True,
