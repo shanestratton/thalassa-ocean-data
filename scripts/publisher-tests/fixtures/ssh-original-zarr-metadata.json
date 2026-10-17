@@ -1,0 +1,618 @@
+{
+    "metadata": {
+        ".zattrs": {
+            "Conventions": "CF-1.6",
+            "Metadata_Conventions": "Unidata Dataset Discovery v1.0",
+            "cdm_data_type": "Grid",
+            "comment": "Sea Surface Height measured by Altimetry and derived variables",
+            "contact": "servicedesk.cmems@mercator-ocean.eu",
+            "coordinates": "lat_bnds lon_bnds",
+            "creator_email": "servicedesk.cmems@mercator-ocean.eu",
+            "creator_name": "CMEMS - Sea Level Thematic Assembly Center",
+            "creator_url": "http://marine.copernicus.eu",
+            "date_created": "2025-04-17T20:03:50Z",
+            "date_issued": "2025-04-17T20:03:50Z",
+            "date_modified": "2025-04-17T20:03:50Z",
+            "geospatial_lat_max": 89.9375,
+            "geospatial_lat_min": -89.9375,
+            "geospatial_lat_resolution": 0.125,
+            "geospatial_lat_units": "degrees_north",
+            "geospatial_lon_max": 179.9375,
+            "geospatial_lon_min": -179.9375,
+            "geospatial_lon_resolution": 0.125,
+            "geospatial_lon_units": "degrees_east",
+            "geospatial_vertical_max": 0.0,
+            "geospatial_vertical_min": 0.0,
+            "geospatial_vertical_positive": "down",
+            "geospatial_vertical_resolution": "point",
+            "geospatial_vertical_units": "m",
+            "history": "2025-04-17 20:03:53Z: Creation",
+            "institution": "CLS, CNES",
+            "keywords": "Oceans > Ocean Topography > Sea Surface Height",
+            "keywords_vocabulary": "NetCDF COARDS Climate and Forecast Standard Names",
+            "license": "http://marine.copernicus.eu/web/27-service-commitments-and-licence.php",
+            "platform": "Altika Drifting Phase, Cryosat-2 New Orbit, Haiyang-2B, Jason-3 Interleaved, Sentinel-3A, Sentinel-3B, Sentinel-6A, SWOT nadir 28days",
+            "processing_level": "L4",
+            "product_version": "vNov2024",
+            "project": "SSALTO/DUACS",
+            "references": "http://marine.copernicus.eu",
+            "software_version": "4.0.2_DUACS_DT2024_baseline",
+            "source": "Altimetry measurements",
+            "ssalto_duacs_comment": "Sentinel-6A is the reference mission used for the altimeter inter-calibration processing",
+            "standard_name_vocabulary": "NetCDF Climate and Forecast (CF) Metadata Convention Standard Name Table v37",
+            "summary": "SSALTO/DUACS Near-Real-Time Level-4 sea surface height and derived variables measured by multi-satellite altimetry observations over Global Ocean.",
+            "time_coverage_duration": "P1D",
+            "time_coverage_end": "2024-11-30T12:00:00Z",
+            "time_coverage_resolution": "P1D",
+            "time_coverage_start": "2024-11-29T12:00:00Z",
+            "title": "NRT merged all satellites Global Ocean Gridded SSALTO/DUACS Sea Surface Height L4 product and derived variables"
+        },
+        ".zgroup": {
+            "zarr_format": 2
+        },
+        "adt/.zarray": {
+            "chunks": [
+                1,
+                512,
+                1024
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": -2147483647,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                839,
+                1440,
+                2880
+            ],
+            "zarr_format": 2
+        },
+        "adt/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "latitude",
+                "longitude"
+            ],
+            "comment": "The absolute dynamic topography is the sea surface height above geoid; the adt is obtained as follows: adt=sla+mdt where mdt is the mean dynamic topography; see the product user manual for details",
+            "coordinates": "longitude latitude",
+            "grid_mapping": "crs",
+            "long_name": "Absolute dynamic topography",
+            "scale_factor": 0.0001,
+            "standard_name": "sea_surface_height_above_geoid",
+            "units": "m"
+        },
+        "err_sla/.zarray": {
+            "chunks": [
+                1,
+                512,
+                1024
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": -2147483647,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                839,
+                1440,
+                2880
+            ],
+            "zarr_format": 2
+        },
+        "err_sla/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "latitude",
+                "longitude"
+            ],
+            "comment": "The formal mapping error represents a purely theoretical mapping error. It mainly traduces errors induced by the constellation sampling capability and consistency with the spatial/temporal scales considered, as described in Le Traon et al (1998) or Ducet et al (2000)",
+            "coordinates": "longitude latitude",
+            "grid_mapping": "crs",
+            "long_name": "Formal mapping error",
+            "scale_factor": 0.0001,
+            "standard_name": "sea_surface_height_above_sea_level standard_error",
+            "units": "m"
+        },
+        "err_ugosa/.zarray": {
+            "chunks": [
+                1,
+                512,
+                1024
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": -2147483647,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                839,
+                1440,
+                2880
+            ],
+            "zarr_format": 2
+        },
+        "err_ugosa/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "latitude",
+                "longitude"
+            ],
+            "comment": "The formal mapping error represents a purely theoretical mapping error. It mainly traduces errors induced by the constellation sampling capability and consistency with the spatial/temporal scales considered, as described in Le Traon et al (1998) or Ducet et al (2000)",
+            "coordinates": "longitude latitude",
+            "grid_mapping": "crs",
+            "long_name": "Formal mapping error on zonal geostrophic velocity anomalies",
+            "scale_factor": 0.0001,
+            "standard_name": "surface_geostrophic_eastward_sea_water_velocity_assuming_sea_level_for_geoid standard_error",
+            "units": "m/s"
+        },
+        "err_vgosa/.zarray": {
+            "chunks": [
+                1,
+                512,
+                1024
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": -2147483647,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                839,
+                1440,
+                2880
+            ],
+            "zarr_format": 2
+        },
+        "err_vgosa/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "latitude",
+                "longitude"
+            ],
+            "comment": "The formal mapping error represents a purely theoretical mapping error. It mainly traduces errors induced by the constellation sampling capability and consistency with the spatial/temporal scales considered, as described in Le Traon et al (1998) or Ducet et al (2000)",
+            "coordinates": "longitude latitude",
+            "grid_mapping": "crs",
+            "long_name": "Formal mapping error on meridional geostrophic velocity anomalies",
+            "scale_factor": 0.0001,
+            "standard_name": "surface_geostrophic_northward_sea_water_velocity_assuming_sea_level_for_geoid standard_error",
+            "units": "m/s"
+        },
+        "flag_ice/.zarray": {
+            "chunks": [
+                1,
+                512,
+                1024
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": -2147483647,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                839,
+                1440,
+                2880
+            ],
+            "zarr_format": 2
+        },
+        "flag_ice/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "latitude",
+                "longitude"
+            ],
+            "comment": "Ice Flag based on Operationnal OSI SAF products until 2016 (OSI-401-b) (Lavergne et al., 2019). The flag corresponds to the 15% sea ice concentration.",
+            "coordinates": "longitude latitude",
+            "flag_meanings": "data_on_sea data_on_ice",
+            "flag_values": [
+                0,
+                1
+            ],
+            "grid_mapping": "crs",
+            "long_name": "Ice Flag for a 15% criterion of ice concentration",
+            "standard_name": "status_flag"
+        },
+        "lat_bnds/.zarray": {
+            "chunks": [
+                1440,
+                2
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1440,
+                2
+            ],
+            "zarr_format": 2
+        },
+        "lat_bnds/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "latitude",
+                "nv"
+            ],
+            "comment": "latitude values at the north and south bounds of each pixel.",
+            "units": "degrees_north"
+        },
+        "latitude/.zarray": {
+            "chunks": [
+                1440
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                1440
+            ],
+            "zarr_format": 2
+        },
+        "latitude/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "latitude"
+            ],
+            "axis": "Y",
+            "bounds": "lat_bnds",
+            "long_name": "Latitude",
+            "standard_name": "latitude",
+            "units": "degrees_north",
+            "valid_max": 89.9375,
+            "valid_min": -89.9375
+        },
+        "lon_bnds/.zarray": {
+            "chunks": [
+                2880,
+                2
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                2880,
+                2
+            ],
+            "zarr_format": 2
+        },
+        "lon_bnds/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "longitude",
+                "nv"
+            ],
+            "comment": "longitude values at the west and east bounds of each pixel.",
+            "units": "degrees_east"
+        },
+        "longitude/.zarray": {
+            "chunks": [
+                2880
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                2880
+            ],
+            "zarr_format": 2
+        },
+        "longitude/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "longitude"
+            ],
+            "axis": "X",
+            "bounds": "lon_bnds",
+            "long_name": "Longitude",
+            "standard_name": "longitude",
+            "units": "degrees_east",
+            "valid_max": 179.9375,
+            "valid_min": -179.9375
+        },
+        "nv/.zarray": {
+            "chunks": [
+                2
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": null,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                2
+            ],
+            "zarr_format": 2
+        },
+        "nv/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "nv"
+            ],
+            "comment": "Vertex",
+            "long_name": "Number of cell vertices",
+            "units": "1"
+        },
+        "sla/.zarray": {
+            "chunks": [
+                1,
+                512,
+                1024
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": -2147483647,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                839,
+                1440,
+                2880
+            ],
+            "zarr_format": 2
+        },
+        "sla/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "latitude",
+                "longitude"
+            ],
+            "ancillary_variables": "err_sla",
+            "comment": "The sea level anomaly is the sea surface height above mean sea surface; it is referenced to the [1993, 2012] period; see the product user manual for details",
+            "coordinates": "longitude latitude",
+            "grid_mapping": "crs",
+            "long_name": "Sea level anomaly",
+            "scale_factor": 0.0001,
+            "standard_name": "sea_surface_height_above_sea_level",
+            "units": "m"
+        },
+        "time/.zarray": {
+            "chunks": [
+                153
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<f4",
+            "fill_value": "NaN",
+            "filters": null,
+            "order": "C",
+            "shape": [
+                839
+            ],
+            "zarr_format": 2
+        },
+        "time/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time"
+            ],
+            "calendar": "gregorian",
+            "units": "days since 1950-01-01"
+        },
+        "ugos/.zarray": {
+            "chunks": [
+                1,
+                512,
+                1024
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": -2147483647,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                839,
+                1440,
+                2880
+            ],
+            "zarr_format": 2
+        },
+        "ugos/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "latitude",
+                "longitude"
+            ],
+            "coordinates": "longitude latitude",
+            "grid_mapping": "crs",
+            "long_name": "Absolute geostrophic velocity: zonal component",
+            "scale_factor": 0.0001,
+            "standard_name": "surface_geostrophic_eastward_sea_water_velocity",
+            "units": "m/s"
+        },
+        "ugosa/.zarray": {
+            "chunks": [
+                1,
+                512,
+                1024
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": -2147483647,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                839,
+                1440,
+                2880
+            ],
+            "zarr_format": 2
+        },
+        "ugosa/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "latitude",
+                "longitude"
+            ],
+            "ancillary_variables": "err_ugosa",
+            "comment": "The geostrophic velocity anomalies are referenced to the [1993, 2012] period",
+            "coordinates": "longitude latitude",
+            "grid_mapping": "crs",
+            "long_name": "Geostrophic velocity anomalies: zonal component",
+            "scale_factor": 0.0001,
+            "standard_name": "surface_geostrophic_eastward_sea_water_velocity_assuming_sea_level_for_geoid",
+            "units": "m/s"
+        },
+        "vgos/.zarray": {
+            "chunks": [
+                1,
+                512,
+                1024
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": -2147483647,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                839,
+                1440,
+                2880
+            ],
+            "zarr_format": 2
+        },
+        "vgos/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "latitude",
+                "longitude"
+            ],
+            "coordinates": "longitude latitude",
+            "grid_mapping": "crs",
+            "long_name": "Absolute geostrophic velocity: meridian component",
+            "scale_factor": 0.0001,
+            "standard_name": "surface_geostrophic_northward_sea_water_velocity",
+            "units": "m/s"
+        },
+        "vgosa/.zarray": {
+            "chunks": [
+                1,
+                512,
+                1024
+            ],
+            "compressor": {
+                "blocksize": 0,
+                "clevel": 5,
+                "cname": "lz4",
+                "id": "blosc",
+                "shuffle": 1
+            },
+            "dtype": "<i4",
+            "fill_value": -2147483647,
+            "filters": null,
+            "order": "C",
+            "shape": [
+                839,
+                1440,
+                2880
+            ],
+            "zarr_format": 2
+        },
+        "vgosa/.zattrs": {
+            "_ARRAY_DIMENSIONS": [
+                "time",
+                "latitude",
+                "longitude"
+            ],
+            "ancillary_variables": "err_vgosa",
+            "comment": "The geostrophic velocity anomalies are referenced to the [1993, 2012] period",
+            "coordinates": "longitude latitude",
+            "grid_mapping": "crs",
+            "long_name": "Geostrophic velocity anomalies: meridian component",
+            "scale_factor": 0.0001,
+            "standard_name": "surface_geostrophic_northward_sea_water_velocity_assuming_sea_level_for_geoid",
+            "units": "m/s"
+        }
+    },
+    "zarr_consolidated_format": 1
+}
