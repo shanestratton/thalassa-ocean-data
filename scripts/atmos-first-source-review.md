@@ -118,6 +118,20 @@ exact original index URLs. One new case independently stops the full generator
 at its first index request and checks the exact provider path before any field
 read. The source tripwire admits this deliberate addition: 115 source cases;
 the five actual native cases and all scientific admission rules remain unchanged.
+
+## Subsequent actual IFS longitude-origin refusal
+
+The later four-read IFS-only diagnostic `39011834081` admitted its index and exact
+525,958-byte pressure range, then refused the original metadata before decoding.
+The original IFS row starts at 180 degrees and ends at 179.75; the GFS origin
+assumption in both admission and sampling was wrong for that field. The bounded
+repair and unchanged GFS contract are reviewed in `atmos-ifs-origin-review.md`.
+The original 117 source cases and five native assertion bodies remain, with the
+IFS sample helper corrected to factual original endpoints; three source and two
+native cases add a nonuniform grid and the exact captured-field replay. The new
+complete inventories are 120 source and seven native tests. This section preserves
+the earlier failed observations; it does not claim a new live source read or a
+completed forecast cohort.
 The URL repair requires a new isolated proof before a second bounded real read.
 
 ## IFS-only recovery diagnostic

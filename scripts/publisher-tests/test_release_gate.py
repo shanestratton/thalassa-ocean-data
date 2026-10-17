@@ -470,6 +470,11 @@ class PublisherReleaseGateTests(unittest.TestCase):
                 "test_http_failure_is_held_without_decoder_or_source_substitution",
                 "test_default_cli_refuses_provider_reads_without_consent",
             ],
+            "test_atmos_longitude.py": [
+                "test_declared_model_origin_and_endpoint_are_required_before_native_expansion",
+                "test_distinct_original_nodes_and_bitmap_keep_geography_for_both_origins",
+                "test_independent_native_probe_uses_exact_original_indexes_for_each_origin",
+            ],
         }
         for filename, names in expectations.items():
             with self.subTest(suite=filename):
@@ -482,12 +487,13 @@ class PublisherReleaseGateTests(unittest.TestCase):
                   for path in sorted((REPO_ROOT / "scripts/publisher-tests").glob("test_*.py"))}
         # Original 68 stay pinned, plus held-atmosphere and three bounded-SSH workflow gates.
         self.assertEqual(sum(n for name, n in counts.items()
-                             if name not in {'test_ssh_grid.py', 'test_atmos.py', 'test_atmos_admission.py', 'test_atmos_first_source.py'}), 68 + 1 + 3)
+                             if name not in {'test_ssh_grid.py', 'test_atmos.py', 'test_atmos_admission.py', 'test_atmos_first_source.py', 'test_atmos_longitude.py'}), 68 + 1 + 3)
         self.assertEqual(counts['test_ssh_grid.py'], 15)
         self.assertEqual(counts['test_atmos.py'], 15)
         self.assertEqual(counts['test_atmos_admission.py'], 4)
         self.assertEqual(counts['test_atmos_first_source.py'], 11)
-        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15 + 4 + 11)
+        self.assertEqual(counts['test_atmos_longitude.py'], 3)
+        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15 + 4 + 11 + 3)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(
