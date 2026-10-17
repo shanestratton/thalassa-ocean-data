@@ -1,0 +1,258 @@
+name: Atmosphere141 reviewed production one-shot
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: Exact reviewed whole atmospheric cohort
+        type: choice
+        options: [gfs-atmos, ifs-pressure]
+        default: gfs-atmos
+        required: true
+      run_utc:
+        description: Exact reviewed cycle; GFS2026-10-17T00 or IFS2026-10-16T12
+        type: string
+        required: true
+      ifs_source:
+        description: IFS must explicitly choose google; GFS requires aws
+        type: choice
+        options: [aws, google]
+        default: aws
+        required: true
+      allow_provider_downloads:
+        type: boolean
+        default: false
+        description: Allow this bounded single generation after review
+      publish:
+        type: boolean
+        default: false
+        description: Allow same-run verified release publication after review
+permissions: {}
+concurrency:
+  group: publisher-atmos-${{ inputs.dataset }}
+  cancel-in-progress: false
+jobs:
+  proof:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && github.repository == 'shanestratton/thalassa-ocean-data' && github.actor == 'shanestratton' && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: cmems-source
+            lock: scripts/cmems-requirements.lock
+            suite: scripts/publisher-tests
+            expected: 126
+          - name: atmos-native
+            lock: scripts/atmos-requirements.lock
+            suite: scripts/atmos-native-tests
+            expected: 7
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - name: Checkout actual immutable master producer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Python3.11.15
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.11.15'
+      - name: Verify production authority and preserve exact identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          git merge-base --is-ancestor b60f8796429d2c71f95790ece690cf52202e90e8 HEAD
+          printf '%s  %s\n' '56d7953aee7d9227dca1dfab273639e00d587e02f770610615a7584bf01c12f8' scripts/atmos_production_runner.py | sha256sum --check --strict
+          test ! -e "$RUNNER_TEMP/atmos141-production-proof"
+          mkdir "$RUNNER_TEMP/atmos141-production-proof"
+          printf '%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/atmos141-production-proof/source.txt"
+          python -B - <<'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0,'scripts')
+          from atmos_production_runner import verify_proven_source
+          verify_proven_source(Path.cwd())
+          PY
+      - name: Install only this separate exact production hash lock
+        env:
+          PROOF_LOCK: ${{ matrix.lock }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r "$PROOF_LOCK" 2>&1 | tee "$RUNNER_TEMP/atmos141-production-proof/install.log"
+          python -m pip check 2>&1 | tee "$RUNNER_TEMP/atmos141-production-proof/pip-check.txt"
+          python -m pip freeze > "$RUNNER_TEMP/atmos141-production-proof/packages.txt"
+      - name: Original126 or native7 plus concrete production controls
+        env:
+          PROOF_NAME: ${{ matrix.name }}
+          PROOF_SUITE: ${{ matrix.suite }}
+          PROOF_EXPECTED: ${{ matrix.expected }}
+          NO_PROXY: '127.0.0.1,localhost,::1'
+          HTTPS_PROXY: 'http://127.0.0.1:9'
+          HTTP_PROXY: 'http://127.0.0.1:9'
+          ALL_PROXY: 'http://127.0.0.1:9'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export no_proxy="$NO_PROXY" https_proxy="$HTTPS_PROXY" http_proxy="$HTTP_PROXY" all_proxy="$ALL_PROXY"
+          if [[ "$PROOF_NAME" == atmos-native ]]; then ulimit -v 2097152; fi
+          set +e
+          python -B - <<'PY' 2>&1 | tee "$RUNNER_TEMP/atmos141-production-proof/unittest.log"
+          import json,os,sys,unittest
+          from pathlib import Path
+          directory,expected=os.environ['PROOF_SUITE'],int(os.environ['PROOF_EXPECTED'])
+          suite=unittest.TestLoader().discover(directory,pattern='test_*.py')
+          assert suite.countTestCases()==expected
+          result=unittest.TextTestRunner(verbosity=2).run(suite)
+          assert result.wasSuccessful() and not result.skipped and result.testsRun==expected
+          forbidden={'xarray','netCDF4','h5py','rasterio'} if os.environ['PROOF_NAME']=='atmos-native' else {'eccodes'}
+          assert not forbidden.intersection(sys.modules)
+          report={'source':os.environ['GITHUB_SHA'],'suite':directory,'run':result.testsRun,'skipped':len(result.skipped),'pass':True}
+          if os.environ['PROOF_NAME']=='cmems-source':
+              extra=unittest.TestLoader().discover('scripts/atmos-production-tests',pattern='test_*.py')
+              assert extra.countTestCases()==22
+              extra_result=unittest.TextTestRunner(verbosity=2).run(extra)
+              assert extra_result.wasSuccessful() and not extra_result.skipped
+              report['newProductionCases']=extra_result.testsRun
+          report['loadedLibraries']=sorted({line.split()[-1] for line in Path('/proc/self/maps').read_text().splitlines() if '.so' in line and '/' in line})
+          Path(os.environ['RUNNER_TEMP'],'atmos141-production-proof','result.json').write_text(json.dumps(report,indent=2)+'\n')
+          PY
+          statuses=("${PIPESTATUS[@]}")
+          printf '%s\n' "${statuses[0]}" > "$RUNNER_TEMP/atmos141-production-proof/process-exit.txt"
+          test "${statuses[0]}" = 0 && test "${statuses[1]}" = 0
+      - name: Preserve proof on every outcome
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: atmos141-production-proof-${{ matrix.name }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/atmos141-production-proof
+          if-no-files-found: warn
+          retention-days: 14
+
+  generate:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && github.repository == 'shanestratton/thalassa-ocean-data' && github.actor == 'shanestratton' && github.run_attempt == 1 && inputs.allow_provider_downloads == true
+    needs: proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      ATMOS_DATASET: ${{ inputs.dataset }}
+      ATMOS_RUN_UTC: ${{ inputs.run_utc }}
+      IFS_SOURCE: ${{ inputs.ifs_source }}
+      PYTHONDONTWRITEBYTECODE: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - name: Checkout same actual immutable producer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Python3.11.15
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.11.15'
+      - name: Prepare fresh evidence without a job-env runner context
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s  %s\n' '56d7953aee7d9227dca1dfab273639e00d587e02f770610615a7584bf01c12f8' scripts/atmos_production_runner.py | sha256sum --check --strict
+          EVIDENCE_DIR="$RUNNER_TEMP/atmos141-production/$GITHUB_RUN_ID/$ATMOS_DATASET"
+          test ! -e "$EVIDENCE_DIR"
+          mkdir -p "$EVIDENCE_DIR"
+          printf 'EVIDENCE_DIR=%s\n' "$EVIDENCE_DIR" >> "$GITHUB_ENV"
+      - name: Install original hash-locked native producer only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/atmos-requirements.lock 2>&1 | tee "$EVIDENCE_DIR/install.log"
+          python -m pip check
+          python -m pip freeze > "$EVIDENCE_DIR/packages.txt"
+      - name: Generate bounded complete cohort with actual same-run provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          ulimit -v 2097152
+          set +e
+          timeout --signal=TERM --kill-after=10s 1200s python -B -u scripts/atmos_production_runner.py 2>&1 | tee "$EVIDENCE_DIR/generate.log"
+          statuses=("${PIPESTATUS[@]}")
+          printf '%s\n' "${statuses[0]}" > "$EVIDENCE_DIR/process-exit.txt"
+          test "${statuses[0]}" = 0 && test "${statuses[1]}" = 0
+      - name: Preserve observer and any partial frames on every outcome
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: atmos141-production-evidence-${{ inputs.dataset }}-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+          overwrite: false
+      - name: Seal only successful admitted bundle for same-run publisher
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: atmos141-production-bundle-${{ inputs.dataset }}-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/output/bundle/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          overwrite: false
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && github.repository == 'shanestratton/thalassa-ocean-data' && github.actor == 'shanestratton' && github.run_attempt == 1 && inputs.allow_provider_downloads == true && inputs.publish == true
+    needs: generate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout same immutable publisher source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Python3.11.15 without native/provider dependencies
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.11.15'
+      - name: Restore only same-run sealed bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: atmos141-production-bundle-${{ inputs.dataset }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/atmos141-publish-bundle
+      - name: Verify exact writer and publish assets then dual slots last
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ATMOS_DATASET: ${{ inputs.dataset }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          printf '%s  %s\n' '3fcb7e836fc13a290425b4e3f075aa0fadaab3148ba3cbe703c9feda884f66c6' scripts/publish_dataset.py | sha256sum --check --strict
+          mkdir "$RUNNER_TEMP/atmos141-publish-proof"
+          set +e
+          python -B scripts/publish_dataset.py --dataset "$ATMOS_DATASET" --bundle "$RUNNER_TEMP/atmos141-publish-bundle" 2>&1 | tee "$RUNNER_TEMP/atmos141-publish-proof/publish.log"
+          statuses=("${PIPESTATUS[@]}")
+          printf '%s\n' "${statuses[0]}" > "$RUNNER_TEMP/atmos141-publish-proof/process-exit.txt"
+          test "${statuses[0]}" = 0 && test "${statuses[1]}" = 0
+      - name: Preserve publication outcome even on refusal
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: atmos141-production-publish-${{ inputs.dataset }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/atmos141-publish-proof
+          if-no-files-found: warn
+          retention-days: 14
