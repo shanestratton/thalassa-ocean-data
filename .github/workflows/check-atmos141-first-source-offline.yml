@@ -1,7 +1,9 @@
 name: Atmosphere 141 first-source isolated offline proof
 
 on:
-    workflow_dispatch:
+    push:
+        branches: [codex/build-141-atmos-first-offline-proof]
+        paths: [.github/workflows/check-atmos141-first-source-offline.yml]
 
 permissions:
     contents: read
@@ -12,7 +14,7 @@ concurrency:
 
 jobs:
     offline:
-        if: github.repository == 'shanestratton/thalassa-ocean-data' && github.actor == 'shanestratton' && github.run_attempt == 1
+        if: github.event_name == 'push' && github.ref == 'refs/heads/codex/build-141-atmos-first-offline-proof' && github.repository == 'shanestratton/thalassa-ocean-data' && github.actor == 'shanestratton' && github.run_attempt == 1
         name: offline (${{ matrix.name }})
         runs-on: ubuntu-24.04
         timeout-minutes: 20
@@ -27,9 +29,9 @@ jobs:
                     - name: atmos-native
                       lock: scripts/atmos-requirements.lock
                       suite: scripts/atmos-native-tests
-                      expected: 3
+                      expected: 5
         env:
-            PROOF_SOURCE_SHA: 6b4cee76deb14cd4b5469b6228aec384baa5133a
+            PROOF_SOURCE_SHA: b9b2f72f3da2e9f6dd4e463805e06389bc07e1b5
             PYTHONFAULTHANDLER: '1'
             OPENBLAS_NUM_THREADS: '1'
             OMP_NUM_THREADS: '1'
@@ -37,7 +39,7 @@ jobs:
             - name: Checkout exact frozen producer source
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
-                  ref: 6b4cee76deb14cd4b5469b6228aec384baa5133a
+                  ref: b9b2f72f3da2e9f6dd4e463805e06389bc07e1b5
                   persist-credentials: false
             - name: Set up Python 3.11.15
               uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -53,7 +55,7 @@ jobs:
                   printf '%s\n' "$PROOF_SOURCE_SHA" > "$RUNNER_TEMP/atmos141-first-offline-proof/source.txt"
                   printf '%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/atmos141-first-offline-proof/control.txt"
                   python --version > "$RUNNER_TEMP/atmos141-first-offline-proof/python.txt"
-                  sha256sum scripts/atmos_contract.py scripts/atmos_pipeline.py scripts/publisher_contract.py scripts/publisher-tests/test_atmos.py scripts/publisher-tests/test_release_gate.py scripts/atmos-native-tests/test_native_atmos.py scripts/atmos-requirements.lock scripts/cmems-requirements.lock scripts/ssh_grid.py scripts/publisher-tests/test_ssh_grid.py .github/workflows/atmos-held-pipeline.yml scripts/prove_atmos_first_source.py scripts/publisher-tests/test_atmos_admission.py scripts/publisher-tests/test_atmos_first_source.py scripts/atmos-first-source-review.md > "$RUNNER_TEMP/atmos141-first-offline-proof/source-sha256.txt"
+                  sha256sum scripts/atmos_contract.py scripts/atmos_pipeline.py scripts/publisher_contract.py scripts/publisher-tests/test_atmos.py scripts/publisher-tests/test_release_gate.py scripts/atmos-native-tests/test_native_atmos.py scripts/atmos-requirements.lock scripts/cmems-requirements.lock scripts/ssh_grid.py scripts/publisher-tests/test_ssh_grid.py .github/workflows/atmos-held-pipeline.yml scripts/prove_atmos_first_source.py scripts/publisher-tests/test_atmos_admission.py scripts/publisher-tests/test_atmos_first_source.py scripts/atmos-first-source-review.md scripts/atmos-native-tests/test_native_first_source.py > "$RUNNER_TEMP/atmos141-first-offline-proof/source-sha256.txt"
             - name: Install only this production process hash lock
               env:
                   PROOF_LOCK: ${{ matrix.lock }}
