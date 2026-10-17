@@ -119,7 +119,7 @@ class ProductionContextTests(unittest.TestCase):
             env=environment();env[key]=value
             with self.assertRaises(contract.ContractError):contract.validate_publish_context({'producer':{'commit':SHA,'run_id':123,'run_attempt':1}},REPO,env)
 
-    def test_all23_baseline_files_and_writer_are_still_exact(self):
+    def test_reviewed22_baseline_files_plus_narrow_gate_and_writer_are_exact(self):
         self.assertEqual(len(runner.PROVEN_FILES),24)
         runner.verify_proven_source(ROOT)
 
