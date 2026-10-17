@@ -9,7 +9,7 @@ pushes, schedules, app flags, secrets or publication were changed by this packet
 
 `atmos_pipeline.py` now extracts the original metadata guard into
 `admit_original_metadata` and checks it **before** `codes_get_values`. This keeps
-the same model/centre,0.25°1440×721 grid, orientation, field, level, units, cycle,
+the same model/centre, 0.25° 1440×721 grid, orientation, field, level, units, cycle,
 valid time and bitmap rules. `sample_original` independently rechecks those rules
 and retains exact value-cardinality, physical bounds and 95% original mask gates.
 `read_original_metadata` reads the same fixed scalar keys without expanding values.
@@ -19,14 +19,17 @@ expansion and one handle release. They also prove positive sampling, cardinality
 physical-range refusal and cleanup on metadata-read failure. These are ordering
 tests, not a claim that fictional GRIB bytes are real provider/native observations.
 The original three actual ecCodes fixtures remain unchanged and mandatory in
-their separate atmospheric Linux dependency closure.
+their separate atmospheric Linux dependency closure. Two additional native cases
+compare indexed original nodes with the full decoder at all four diagnostic model
+endpoints and verify the exact bitmap-unknown node and remaining known nodes.
 
 ## Mandatory offline proof before any original read
 
 The original source tripwire keeps its 72 baseline tests, 15 SSH tests and 15 original
 atmosphere tests. Four new admission methods and eight one-shot methods are added
 explicitly: 114 source cases total, with all original named assertions retained.
-The native closure remains three actual ecCodes tests, zero skips, and must exit 0.
+The native closure retains those three original actual ecCodes tests and adds the
+two indexed-node cases: five native tests, zero skips, and a mandatory process exit 0.
 
 Preserve the earlier separate-process pattern from
 `.github/workflows/check-atmos141-offline.yml`: one Linux 3.11.15 process installs
