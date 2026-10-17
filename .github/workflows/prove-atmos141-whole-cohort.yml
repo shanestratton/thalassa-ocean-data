@@ -1,0 +1,326 @@
+name: Atmosphere141 one-shot complete29GFS and41IFS proof only
+on:
+  push:
+    branches:
+      - codex/build-141-atmos-whole-cohort-proof
+    paths:
+      - .github/workflows/prove-atmos141-whole-cohort.yml
+permissions:
+  contents: read
+concurrency:
+  group: atmos141-first-original-observation
+  cancel-in-progress: false
+jobs:
+  generate:
+    if: github.event_name == 'push' && github.repository == 'shanestratton/thalassa-ocean-data' && github.actor == 'shanestratton' && github.run_attempt == 1 && github.ref == 'refs/heads/codex/build-141-atmos-whole-cohort-proof'
+    name: whole (${{ matrix.dataset }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - dataset: gfs-atmos
+            runUtc: 2026-10-17T00:00:00+00:00
+            ifsSource: aws
+          - dataset: ifs-pressure
+            runUtc: 2026-10-16T12:00:00+00:00
+            ifsSource: google
+    env:
+      SOURCE_SHA: b60f8796429d2c71f95790ece690cf52202e90e8
+      CONTROL_SHA: ${{ github.sha }}
+      ATMOS_DATASET: ${{ matrix.dataset }}
+      ATMOS_RUN_UTC: ${{ matrix.runUtc }}
+      IFS_SOURCE: ${{ matrix.ifsSource }}
+      EVIDENCE_DIR: ${{ runner.temp }}/atmos141-whole-cohort/${{ matrix.dataset }}
+      PYTHONFAULTHANDLER: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - name: Checkout exact reviewed producer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: b60f8796429d2c71f95790ece690cf52202e90e8
+          persist-credentials: false
+      - name: Isolated Python3.11.15
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: 3.11.15
+      - name: Verify fixed source and install only original native lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$GITHUB_SHA" = "$CONTROL_SHA"
+          test -z "$(git status --porcelain)"
+          test ! -e "$EVIDENCE_DIR"
+          mkdir -p "$EVIDENCE_DIR"
+          printf '%s\n' "$SOURCE_SHA" > "$EVIDENCE_DIR/source.txt"
+          printf '%s\n' "$CONTROL_SHA" > "$EVIDENCE_DIR/control.txt"
+          printf '%s\n' "$GITHUB_RUN_ID" > "$EVIDENCE_DIR/run.txt"
+          python --version > "$EVIDENCE_DIR/python.txt"
+          sha256sum -c <<'SOURCE_HASHES'
+          cc53adf63d7e6608f5a95c8473601df084ebcafa0a0a635716c292b1d2d2f104  scripts/atmos_contract.py
+          559d7c68f8bbeffc9ed1ff94918e7bc587694f8fbbff0ca7632bbc5a08c33c59  scripts/atmos_pipeline.py
+          3ecec84d3d6afb4e44f309425a7d7eba78160a61474de78c433ac5e6c2fca6a2  scripts/publisher_contract.py
+          e70e50830ec4c8b84308c09fe5bedc53740d6ddf4e3a3aa5212525c1085c9a6e  scripts/publisher-tests/test_atmos.py
+          3ba0d5c36020b51259fc30037ab19da722729ab44090ac0806757dd0d20e2b65  scripts/publisher-tests/test_release_gate.py
+          a6cd886e4cc3479acfea555a7356fc714b000b3e3860fb966b3b8602b7b25317  scripts/atmos-native-tests/test_native_atmos.py
+          cfd6e6ae3863ee58bd40f780df1fbf86443790989f050e2063163f2f96df2f64  scripts/atmos-requirements.lock
+          8cbdd76e0cba1668c4f53973407e7bfea3ce6ecc60a9c0496025d43d15bbab03  scripts/cmems-requirements.lock
+          3b229876e75930f0b37d9ebf3368a4e9731625d403f14a8178fada412090bfb4  scripts/ssh_grid.py
+          421d12b4eb08a04e5dd3d48e6b79a18755d4c943a9eafad60d9b7ffb52067ea2  scripts/publisher-tests/test_ssh_grid.py
+          39494b1a96f5d47d37c375ab94e85d5faa0320e36398cc292321ac555550100f  .github/workflows/atmos-held-pipeline.yml
+          7ef4955e6a59a923a36e461f65c1c0b2c115074ad17533b6d2bfac3e4614aa08  scripts/prove_atmos_first_source.py
+          3eb36dd58b27dcf533dd441cc671c46621264cd1d7d605f841b738704fedf79f  scripts/publisher-tests/test_atmos_admission.py
+          5bed15833ced1e309ce9910b7d6a88684ff1ffe76bc387eb153dd82328a98130  scripts/publisher-tests/test_atmos_first_source.py
+          2d1c6a551571d0d39ad3099770b9baeb354314d40d688c835e6b377c814ab5c2  scripts/atmos-first-source-review.md
+          5034b132cdac969c623bed6ff402d14e9aa88bbe315b4e5615c607648a0df473  scripts/atmos-native-tests/test_native_first_source.py
+          275f3456185e42353e906d063f13207a17f6bc0974d8a3fe1896b9be25f9a05c  scripts/publisher-tests/test_atmos_longitude.py
+          cab85664ddf5a770e5d1e18d3da1e95b7c1a71fd52c42ea751ad351ae425c2bc  scripts/atmos-native-tests/test_native_ifs_origin.py
+          599ae5df95354ad5b2070bb853762ff7c8111d6dec0acb25d9af5c705e4e696e  scripts/atmos-native-tests/fixtures/ifs-msl-20261016T1200Z-f000.grib2
+          8b7406191c0c80f7dce292725ac89d887a736832e103804f8fc1d98a5e3671c9  scripts/atmos-native-tests/fixtures/ifs-msl-20261016T1200Z-f000.json
+          be5e04c9469752ff49751516d1440c77e77234d0ca7713693c32842b59a12ec5  scripts/atmos-ifs-origin-review.md
+          ef694a1c32cb535ded3e21ed53be3b6386d44ef3bb6093254020bf582c7816bc  scripts/atmos-ifs-replica-review.md
+          3d2e321bf45f64711abfcdaf355ab2b4e09a3a1c5521ae7f86df8c030693f40f  scripts/publisher-tests/test_atmos_replica.py
+          SOURCE_HASHES
+          sha256sum scripts/atmos_contract.py scripts/atmos_pipeline.py scripts/publisher_contract.py scripts/publisher-tests/test_atmos.py scripts/publisher-tests/test_release_gate.py scripts/atmos-native-tests/test_native_atmos.py scripts/atmos-requirements.lock scripts/cmems-requirements.lock scripts/ssh_grid.py scripts/publisher-tests/test_ssh_grid.py .github/workflows/atmos-held-pipeline.yml scripts/prove_atmos_first_source.py scripts/publisher-tests/test_atmos_admission.py scripts/publisher-tests/test_atmos_first_source.py scripts/atmos-first-source-review.md scripts/atmos-native-tests/test_native_first_source.py scripts/publisher-tests/test_atmos_longitude.py scripts/atmos-native-tests/test_native_ifs_origin.py scripts/atmos-native-tests/fixtures/ifs-msl-20261016T1200Z-f000.grib2 scripts/atmos-native-tests/fixtures/ifs-msl-20261016T1200Z-f000.json scripts/atmos-ifs-origin-review.md scripts/atmos-ifs-replica-review.md scripts/publisher-tests/test_atmos_replica.py > "$EVIDENCE_DIR/source-sha256.txt"
+          python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/atmos-requirements.lock 2>&1 | tee "$EVIDENCE_DIR/install.log"
+          python -m pip check 2>&1 | tee "$EVIDENCE_DIR/pip-check.txt"
+          python -m pip freeze > "$EVIDENCE_DIR/packages.txt"
+      - name: Generate one complete fixed-cycle cohort with bounded read receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ulimit -v 2097152
+          cat > "$EVIDENCE_DIR/whole-observer.py" <<'PY_OBSERVER'
+          """One-shot proof controller: original producer/transport/decoder, bounded receipts.
+
+          This file is embedded verbatim in a reviewed immutable workflow. It neither
+          publishes nor selects a newer cycle, retries, or changes an existing source cap.
+          """
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import os
+          import re
+          import signal
+          import sys
+          import time
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          sys.path.insert(0, str(Path.cwd() / 'scripts'))
+          from atmos_contract import ATMOS_DATASETS, file_bytes, validate_atmos_manifest
+          from atmos_pipeline import (DownloadBudget, GFS_HOST, MAX_REQUESTS, MAX_TOTAL_BYTES,
+                                      TOTAL_SECONDS, generate, ifs_original_url)
+          from publisher_contract import DRAFT_MANIFEST_NAME, _require
+
+          SOURCE_SHA = 'b60f8796429d2c71f95790ece690cf52202e90e8'
+          MAX_METADATA_BYTES = 1024 * 1024
+          CONTEXT = {
+              'gfs-atmos': ('2026-10-17T00:00:00+00:00', 'aws', 29, 174),
+              'ifs-pressure': ('2026-10-16T12:00:00+00:00', 'google', 41, 82),
+          }
+          PREREQUISITES = {
+              'offline': {
+                  'source': SOURCE_SHA, 'run': 39015257829,
+                  'definition': 'c42f547bd01e3ca2daea2c1dc3de999a12cb2d60',
+                  'proofSha256': '54a94dcaf91cacf4ae82158707e5fa5d93659239b1c4808eddafa9433f282653',
+                  'sourceCases': 126, 'nativeCases': 7, 'skipped': 0,
+                  'sourceArtifact': {'id': 12094202789, 'sha256': 'ca34bb8dfe8609b3216d82ebc37363ad3763ed83894ac2109d7b7052c3309e54'},
+                  'nativeArtifact': {'id': 12094247725, 'sha256': 'c37443202ad326d1959f9a56ca3c83b17bde44acad1300d331776469f42a6c21'},
+              },
+              'googleEndpoints': {
+                  'source': SOURCE_SHA, 'run': 39015598953,
+                  'definition': 'b410c261f5cb3c5c3db3a9e59c9fa8ddacf63b3d',
+                  'proofSha256': 'ba7127459b5989cac1dd37a4d7a51eb75c1fb4478f6605d5d426b3ff7231f6e4',
+                  'reads': 4, 'frames': 2, 'ifsOffsets': [0, 240],
+                  'artifact': {'id': 12094637169, 'sha256': 'b3acebdc3f8e6b894be020739b0278877c0c57f4e5c167f842f8dc94724e5b08'},
+              },
+          }
+
+
+          def bounded_json(path, value):
+              raw = (json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + '\n').encode()
+              _require(len(raw) <= MAX_METADATA_BYTES, 'observer metadata exceeds1MiB')
+              temporary = path.with_suffix('.pending')
+              with temporary.open('wb') as target:
+                  target.write(raw)
+              temporary.replace(path)
+
+
+          class ObservedBudget(DownloadBudget):
+              """Call the unchanged reader once; hash only bytes it actually returned."""
+
+              def __init__(self, dataset, run, profile, evidence, identity):
+                  super().__init__()
+                  self.started = self.clock()
+                  self.dataset, self.run, self.profile = dataset, run, profile
+                  self.evidence, self.identity = evidence, identity
+                  self.records = []
+                  self.outcome = {'state': 'running', 'completeCohort': False}
+                  self.allowed = set()
+                  stamp, hour = run.strftime('%Y%m%d'), run.strftime('%H')
+                  for offset in range(0, ATMOS_DATASETS[dataset]['steps'] * 6, 6):
+                      if dataset == 'gfs-atmos':
+                          base = f'https://{GFS_HOST}/gfs.{stamp}/{hour}/atmos/gfs.t{hour}z.pgrb2.0p25.f{offset:03d}'
+                          host, suffix = GFS_HOST, '.idx'
+                      else:
+                          base, host = ifs_original_url(run, offset, profile)
+                          suffix = '.index'
+                      self.allowed.add((base.removesuffix('.grib2') + suffix, host, False))
+                      self.allowed.add((base, host, True))
+
+              def snapshot(self):
+                  return {
+                      **self.identity, 'dataset': self.dataset, 'ifsSource': self.profile,
+                      'runUtc': self.run.isoformat(), 'prerequisites': PREREQUISITES,
+                      'limits': {'requests': MAX_REQUESTS, 'bodyBytes': MAX_TOTAL_BYTES,
+                                 'seconds': TOTAL_SECONDS, 'metadataBytes': MAX_METADATA_BYTES},
+                      'requests': self.requests, 'bodyBytes': self.bytes,
+                      'elapsedSeconds': self.clock() - self.started,
+                      'records': self.records, 'outcome': self.outcome,
+                      'publication': False, 'activation': False, 'retryLoop': False,
+                      'providerFallback': False,
+                  }
+
+              def persist(self):
+                  bounded_json(self.evidence / 'observer.json', self.snapshot())
+
+              def read(self, url, host, *, byte_range=None):
+                  _require(len(self.records) < MAX_REQUESTS, 'observer request-row bound')
+                  _require((url, host, byte_range is not None) in self.allowed,
+                           'observer URL outside fixed dataset/cycle/profile')
+                  _require(byte_range is None or (type(byte_range) is tuple and len(byte_range) == 2
+                           and all(type(n) is int for n in byte_range)), 'observer range shape')
+                  row = {'url': url, 'host': host, 'range': list(byte_range) if byte_range is not None else None}
+                  try:
+                      original = super().read(url, host, byte_range=byte_range)
+                      row.update(state='returned', number=self.requests, bytes=len(original),
+                                 sha256=hashlib.sha256(original).hexdigest())
+                      return original
+                  except BaseException as error:
+                      # No digest/length is invented for a refused or partially read body.
+                      row.update(state='failed', number=self.requests,
+                                 errorType=type(error).__name__, error=str(error)[:512])
+                      raise
+                  finally:
+                      self.records.append(row)
+                      self.persist()
+
+
+          def expire(_signum, _frame):
+              raise TimeoutError('original1200-second whole-cohort proof deadline')
+
+
+          def main():
+              dataset = os.environ.get('ATMOS_DATASET', '')
+              evidence = Path(os.environ['EVIDENCE_DIR'])
+              _require(evidence.is_dir() and not evidence.is_symlink(), 'missing/faulty proof directory')
+              budget = None
+              outcome = {'state': 'preflight-failed', 'completeCohort': False}
+              identity = {'source': SOURCE_SHA, 'control': os.environ.get('CONTROL_SHA', ''),
+                          'runId': os.environ.get('GITHUB_RUN_ID', ''),
+                          'runAttempt': os.environ.get('GITHUB_RUN_ATTEMPT', '')}
+              try:
+                  _require(dataset in CONTEXT, 'unreviewed whole-cohort dataset')
+                  cycle, profile, steps, expected_reads = CONTEXT[dataset]
+                  _require(os.environ.get('SOURCE_SHA') == os.environ.get('GITHUB_SHA') == SOURCE_SHA,
+                           'producer source provenance mismatch')
+                  _require(re.fullmatch(r'[a-f0-9]{40}', identity['control']) is not None
+                           and identity['control'] != SOURCE_SHA,
+                           'missing immutable control provenance')
+                  _require(identity['runId'].isdigit() and int(identity['runId']) > 0
+                           and identity['runAttempt'] == '1', 'not the first actual workflow attempt')
+                  _require(os.environ.get('ATMOS_RUN_UTC') == cycle
+                           and os.environ.get('IFS_SOURCE') == profile, 'unreviewed cycle or source profile')
+                  run = datetime.fromisoformat(cycle)
+                  _require(datetime.now(timezone.utc) < datetime(2026, 10, 17, 12, tzinfo=timezone.utc),
+                           'fixed cycles have expired; no newer run selected')
+                  output = evidence / 'output'
+                  _require(not output.exists() and not output.is_symlink(), 'output must be fresh')
+                  budget = ObservedBudget(dataset, run, profile, evidence, identity)
+                  budget.persist()
+                  signal.signal(signal.SIGALRM, expire)
+                  signal.alarm(TOTAL_SECONDS)
+                  # Original generator, reader, native decoder and all scientific gates.
+                  draft = generate(dataset, run, output, budget=budget, ifs_source=profile)
+                  manifest = json.loads(draft.read_text())
+                  validate_atmos_manifest(manifest, dataset, allow_draft=True, bundle_dir=draft.parent)
+                  _require(draft.name == DRAFT_MANIFEST_NAME and manifest['published_at'] is None,
+                           'proof did not return an unpublished draft')
+                  _require(manifest['producer'] == {'commit': SOURCE_SHA,
+                           'run_id': int(identity['runId']), 'run_attempt': 1}, 'draft producer identity mismatch')
+                  _require(len(manifest['files']) == steps and budget.requests == expected_reads
+                           and len(budget.records) == expected_reads
+                           and all(row['state'] == 'returned' for row in budget.records), 'whole-cohort inventory incomplete')
+                  expected_paths = {f'step-{i:03d}.bin' for i in range(steps)}
+                  expected_paths.update('bundle/' + row['filename'] for row in manifest['files'])
+                  expected_paths.add('bundle/' + DRAFT_MANIFEST_NAME)
+                  actual = list(output.rglob('*'))
+                  files = [p for p in actual if p.is_file()]
+                  _require(not any(p.is_symlink() for p in actual)
+                           and {p.relative_to(output).as_posix() for p in files} == expected_paths,
+                           'unexpected/partial output inventory')
+                  expected_payload = file_bytes(dataset) * steps * 2
+                  _require(sum(p.stat().st_size for p in files) == expected_payload + draft.stat().st_size,
+                           'whole-cohort directory byte mismatch')
+                  budget.check()
+                  _require(budget.clock() - budget.started <= TOTAL_SECONDS, 'whole-cohort proof deadline exceeded')
+                  outcome = {'state': 'verified-complete-draft', 'completeCohort': True,
+                             'steps': steps, 'expectedRequests': expected_reads,
+                             'draft': str(draft.relative_to(evidence)),
+                             'draftSha256': hashlib.sha256(draft.read_bytes()).hexdigest(),
+                             'generation': manifest['generation'], 'outputFiles': len(files),
+                             'outputBytes': expected_payload + draft.stat().st_size,
+                             'publishedAt': None}
+                  print(json.dumps({'dataset': dataset, **outcome, 'requests': budget.requests,
+                                    'bodyBytes': budget.bytes, 'publication': False}))
+              except BaseException as error:
+                  outcome = {'state': 'failed', 'completeCohort': False,
+                             'errorType': type(error).__name__, 'error': str(error)[:512]}
+                  raise
+              finally:
+                  signal.alarm(0)
+                  if budget is not None:
+                      budget.outcome = outcome
+                      budget.persist()
+                  else:
+                      bounded_json(evidence / 'observer.json', {**identity, 'dataset': dataset,
+                                   'outcome': outcome, 'prerequisites': PREREQUISITES,
+                                   'publication': False, 'activation': False})
+
+
+          if __name__ == '__main__':
+              main()
+          PY_OBSERVER
+          (
+            cd "$EVIDENCE_DIR"
+            printf 'e3409f5e82619b4356524e1876fca6ec4a21a98743ee80ef74b857061a38b911  whole-observer.py\n' | sha256sum -c -
+          )
+          env GITHUB_SHA="$SOURCE_SHA" python -E -s -B "$EVIDENCE_DIR/whole-observer.py" 2>&1 | tee "$EVIDENCE_DIR/command.log"
+          # This marker exists only after the actual Python process returned0 under pipefail.
+          printf '0\n' > "$EVIDENCE_DIR/process-exit.txt"
+      - name: Record unchanged checkout on every outcome
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -d "$EVIDENCE_DIR" ]]; then
+            git rev-parse HEAD > "$EVIDENCE_DIR/source-after.txt"
+            git status --porcelain > "$EVIDENCE_DIR/tracked-status-after.txt"
+            test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+            test -z "$(git status --porcelain)"
+          fi
+      - name: Preserve complete or partial proof on every outcome
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: atmos141-whole-cohort-${{ matrix.dataset }}-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
