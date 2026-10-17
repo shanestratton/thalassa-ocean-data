@@ -10,6 +10,7 @@ side of the contract (proxy, clients, Vercel routing).
 from __future__ import annotations
 
 import re
+import json
 import unittest
 from pathlib import Path
 
@@ -73,15 +74,16 @@ def step_source(source: str, name_prefix: str) -> str:
 
 
 class PublisherReleaseGateTests(unittest.TestCase):
-    def test_ssh_manual_generator_has_original_bounds_and_explicit_provider_gate(self) -> None:
+    def test_ssh_generator_has_original_bounds_and_explicit_schedule_or_manual_provider_gate(self) -> None:
         source = read('.github/workflows/ssh-observations-publisher.yml')
         generate = job_source(source, 'generate')
         self.assertIn('workflow_dispatch:', source)
         self.assertEqual(source.count('default: false'), 2)
-        self.assertNotIn('schedule:', source)
+        self.assertEqual(source.count("- cron: '47 8 * * *'"), 1)
         self.assertNotIn('push:', source)
         self.assertTrue(includes_all(generate, [
             "github.ref == 'refs/heads/master'", 'inputs.allow_provider_downloads == true',
+            "github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.allow_provider_downloads == true)",
             'contents: read', 'persist-credentials: false', "python-version: '3.11.15'",
             '--require-hashes --only-binary=:all:', 'scripts/cmems-requirements.lock',
             'ulimit -v 3145728', 'ulimit -f 131072', '600s', '-le 268435456',
@@ -97,10 +99,30 @@ class PublisherReleaseGateTests(unittest.TestCase):
         self.assertNotIn('contents: write', generate)
         self.assertNotIn('GH_TOKEN:', generate)
 
+    def test_daily_ssh_activation_keeps_exact_first_public_and_app_readback_receipt(self) -> None:
+        receipt = json.loads(read('scripts/publisher-tests/fixtures/ssh-first-public-readback.json'))
+        self.assertEqual(receipt['publicationRun'], 38999035362)
+        self.assertEqual(receipt['publicationAttempt'], 1)
+        self.assertEqual(receipt['publisherCommit'], '43b676873ad4396841f9830fab94580917eb7a2a')
+        self.assertEqual(receipt['publicUnauthenticatedSlots'], ['manifest-v2-a.json', 'manifest-v2-b.json'])
+        self.assertEqual(receipt['assetBytes'], 4406464)
+        self.assertEqual(receipt['assetSha256'], '9dad1f3057ff9e12302bbb4296cf9e3a7c9e94cabfd6cdf6127d657e4ea883db')
+        for field in ['actualPublisherContractPassed', 'actualAppDecoderPassed',
+                      'actualSourceProxyAgainstLivePublicUpstreamPassed', 'pageExtentUnchanged']:
+            self.assertIs(receipt[field], True)
+        self.assertEqual(receipt['actualPhoneCases'], 4)
+        self.assertEqual(receipt['phoneEngines'], ['Chrome', 'WebKit'])
+        self.assertEqual(receipt['phoneWidths'], [300, 375])
+        self.assertEqual(receipt['textPercent'], 130)
+        self.assertIs(receipt['productionAppFlagEnabled'], False)
+        for field in ['bothSlotSha256', 'publicationProofSha256', 'decoderProofSha256', 'phoneProofSha256']:
+            self.assertRegex(receipt[field], r'^[0-9a-f]{64}$')
+
     def test_ssh_writer_is_same_run_and_has_no_scientific_or_provider_credentials(self) -> None:
         publish = job_source(read('.github/workflows/ssh-observations-publisher.yml'), 'publish')
         self.assertTrue(includes_all(publish, [
             "github.ref == 'refs/heads/master'", 'inputs.publish == true', 'needs: generate',
+            "github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish == true)",
             'contents: write', 'persist-credentials: false', 'name: ssh-${{ github.run_id }}',
             'python scripts/publish_dataset.py --dataset ssh --bundle /tmp/publisher-bundle',
         ]))
@@ -439,12 +461,12 @@ class PublisherReleaseGateTests(unittest.TestCase):
         # plus the MPA sliver-area and classification tests (68).
         counts = {path.name: len(re.findall(r"(?m)^\s*def test_", path.read_text()))
                   for path in sorted((REPO_ROOT / "scripts/publisher-tests").glob("test_*.py"))}
-        # Original 68 stay pinned, plus held-atmosphere and two bounded-SSH workflow gates.
+        # Original 68 stay pinned, plus held-atmosphere and three bounded-SSH workflow gates.
         self.assertEqual(sum(n for name, n in counts.items()
-                             if name not in {'test_ssh_grid.py', 'test_atmos.py'}), 68 + 1 + 2)
+                             if name not in {'test_ssh_grid.py', 'test_atmos.py'}), 68 + 1 + 3)
         self.assertEqual(counts['test_ssh_grid.py'], 15)
         self.assertEqual(counts['test_atmos.py'], 15)
-        self.assertEqual(sum(counts.values()), 68 + 1 + 2 + 15 + 15)
+        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(

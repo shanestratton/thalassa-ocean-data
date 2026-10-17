@@ -1,6 +1,8 @@
 name: Daily SSH Observations - Trusted Release
-# A daily schedule follows separate successful public readback.
+# Public slots, original bytes, app decoder and phone readback were verified first.
 on:
+    schedule:
+        - cron: '47 8 * * *'
     workflow_dispatch:
         inputs:
             allow_provider_downloads:
@@ -17,7 +19,7 @@ concurrency:
     cancel-in-progress: false
 jobs:
     generate:
-        if: github.repository == 'shanestratton/thalassa-ocean-data' && github.ref == 'refs/heads/master' && inputs.allow_provider_downloads == true
+        if: github.repository == 'shanestratton/thalassa-ocean-data' && github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.allow_provider_downloads == true))
         permissions:
             contents: read
         runs-on: ubuntu-24.04
@@ -89,7 +91,7 @@ jobs:
                   compression-level: 0
 
     publish:
-        if: github.ref == 'refs/heads/master' && inputs.publish == true
+        if: github.repository == 'shanestratton/thalassa-ocean-data' && github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish == true))
         needs: generate
         runs-on: ubuntu-24.04
         timeout-minutes: 30

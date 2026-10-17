@@ -13,8 +13,8 @@ The source proof exercised the original 83,001,158-byte NetCDF with the actual
 CF time encoding and cell-centre bounds. The 128 MiB native-file, 256 MiB output,
 3 GiB virtual memory and ten-minute generation limits remain enforced.
 
-`ssh-observations-publisher.yml` is initially manual, master-only and disabled
-by default. An explicit provider input enables one generation job under the
+`ssh-observations-publisher.yml` runs daily at 08:47 UTC on master. Its manual
+provider and publication inputs remain false by default. An explicit provider input enables one generation job under the
 existing hash-locked CMEMS dependencies. Its source log and resource evidence
 are retained. A separate publish input enables the standard-library-only writer
 to restore the same run's sealed bundle. The existing writer validates original
@@ -22,10 +22,14 @@ source freshness, producer commit/run, every local and remote byte, immutable
 generation assets and deterministic ISO-week shards before changing the two
 discovery slots last. The writer receives no provider credentials.
 
-A daily schedule and the app release flag require successful public discovery
-slot and immutable payload readback first. A generated draft, a GitHub job exit,
-or the older diagnostic source artifact does not prove publication or app
-availability. The six existing CMEMS pipelines and MPA workflow are unchanged.
+The daily schedule follows successful first publication run38999035362: both
+public discovery slots and the immutable4,406,464-byte payload were read without
+credentials and matched the same-run sealed artifact. The actual app decoder and
+source proxy against live public upstream passed; Chrome and WebKit at300/375px
+and130% text passed four real Mapbox phone replays without changing page extent.
+The fixed receipt is in `publisher-tests/fixtures/ssh-first-public-readback.json`.
+This daily data schedule does not enable the app flag or claim the new Vercel
+route is deployed. The six existing CMEMS pipelines and MPA workflow are unchanged.
 
 Source and credit: Copernicus Marine product
 `SEALEVEL_GLO_PHY_L4_NRT_008_046`, dataset
