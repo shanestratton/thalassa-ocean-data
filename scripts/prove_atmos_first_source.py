@@ -21,9 +21,9 @@ from pathlib import Path
 
 from atmos_contract import (ATMOS_DATASETS, CELLS, FIELDS, file_bytes, metadata_for,
                             validate_run, write_frame)
-from atmos_pipeline import (DownloadBudget, GFS_HOST, IFS_HOST, MAX_FIELD_BYTES,
+from atmos_pipeline import (DownloadBudget, GFS_HOST, IFS_SOURCES, MAX_FIELD_BYTES,
                             admit_original_metadata, decode_message, gfs_ranges,
-                            ifs_range, read_original_metadata)
+                            ifs_range, read_original_metadata, ifs_source_location, ifs_original_url)
 from publisher_contract import ContractError, _require, parse_utc
 
 MAX_READS = 16
@@ -207,9 +207,10 @@ def verify_samples(plane, probe):
 
 def prove_first_source(gfs_run, ifs_run, out, *, allow_provider_downloads=False,
                        budget_factory=ProofBudget, decoder=decode_message,
-                       probe=native_source_probe, now=None, runtime=None, ifs_only=False):
+                       probe=native_source_probe, now=None, runtime=None, ifs_only=False, ifs_source='aws'):
     _require(allow_provider_downloads is True, 'reviewed first-source reads are held')
     _require(type(ifs_only) is bool, 'invalid diagnostic scope')
+    ifs_source_location(ifs_source)
     now = now or datetime.now(timezone.utc)
     validate_run('gfs-atmos', gfs_run)
     validate_run('ifs-pressure', ifs_run)
@@ -226,6 +227,7 @@ def prove_first_source(gfs_run, ifs_run, out, *, allow_provider_downloads=False,
     report = {'purpose': 'original-source diagnostic only', 'completeCohort': False, 'publication': False,
               'gfsRun': gfs_run.isoformat(), 'ifsRun': ifs_run.isoformat(),
               'runtime': runtime, 'scope': 'ifs-pressure-only' if ifs_only else 'gfs-and-ifs',
+              'ifsSource': ifs_source,
               'requestedAt': now.isoformat(), 'limits': {'reads': budget.max_reads, 'bodyBytes': MAX_BODY_BYTES,
               'directoryBytes': MAX_DIRECTORY_BYTES, 'seconds': MAX_SECONDS, 'readSeconds': 20,
               'fieldBytes': MAX_FIELD_BYTES, 'processBytes': MAX_PROCESS_BYTES}}
@@ -242,9 +244,9 @@ def prove_first_source(gfs_run, ifs_run, out, *, allow_provider_downloads=False,
                     index = budget.read_original(prefix + '-index', url + '.idx', GFS_HOST)
                     ranges, host = gfs_ranges(index.decode('utf-8'), run, offset), GFS_HOST
                 else:
-                    url = f'https://{IFS_HOST}/{stamp}/{hour}z/ifs/0p25/oper/{stamp}{hour}0000-{offset}h-oper-fc.grib2'
-                    index = budget.read_original(prefix + '-index', url.removesuffix('.grib2') + '.index', IFS_HOST)
-                    ranges, host = {'pressure': ifs_range(index.decode('utf-8'), run, offset)}, IFS_HOST
+                    url, host = ifs_original_url(run, offset, ifs_source)
+                    index = budget.read_original(prefix + '-index', url.removesuffix('.grib2') + '.index', host)
+                    ranges = {'pressure': ifs_range(index.decode('utf-8'), run, offset)}
                 planes = {}
                 for field in ATMOS_DATASETS[dataset]['fields']:
                     raw = budget.read_original(prefix + '-' + field, url, host, byte_range=ranges[field])
@@ -297,6 +299,8 @@ def main():
     parser.add_argument('--read-reviewed-first-source', action='store_true', default=False)
     parser.add_argument('--ifs-only', action='store_true', default=False,
                         help='Four-read IFS diagnostic only; never repeats GFS or forms a complete cohort')
+    parser.add_argument('--ifs-source', choices=sorted(IFS_SOURCES), default='aws',
+                        help='Explicit official replica; no automatic fallback')
     args = parser.parse_args()
     if not args.read_reviewed_first_source:
         parser.error('provider reads are held; explicit --read-reviewed-first-source required')
@@ -314,7 +318,8 @@ def main():
         runtime = {'python': sys.version, 'ecCodesApi': eccodes.codes_get_api_version(),
                    'forbiddenImportedModules': []}
         prove_first_source(parse_utc(args.gfs_run, 'gfs run'), parse_utc(args.ifs_run, 'ifs run'), args.out,
-                           allow_provider_downloads=True, runtime=runtime, ifs_only=args.ifs_only)
+                           allow_provider_downloads=True, runtime=runtime, ifs_only=args.ifs_only,
+                           ifs_source=args.ifs_source)
     finally:
         signal.alarm(0)
 

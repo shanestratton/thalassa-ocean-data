@@ -475,6 +475,14 @@ class PublisherReleaseGateTests(unittest.TestCase):
                 "test_distinct_original_nodes_and_bitmap_keep_geography_for_both_origins",
                 "test_independent_native_probe_uses_exact_original_indexes_for_each_origin",
             ],
+            "test_atmos_replica.py": [
+                "test_default_aws_and_explicit_google_have_exact_original_paths",
+                "test_arbitrary_hosts_buckets_and_non_string_profiles_are_refused_before_output",
+                "test_explicit_google_retains_four_originals_two_native_checked_frames_and_fifth_read_hold",
+                "test_selected_replica_failure_stops_without_trying_another_source",
+                "test_full_ifs_generator_uses_same_explicit_replica_before_first_field",
+                "test_ifs_selection_cannot_change_or_silently_apply_to_gfs_generation",
+            ],
         }
         for filename, names in expectations.items():
             with self.subTest(suite=filename):
@@ -487,13 +495,14 @@ class PublisherReleaseGateTests(unittest.TestCase):
                   for path in sorted((REPO_ROOT / "scripts/publisher-tests").glob("test_*.py"))}
         # Original 68 stay pinned, plus held-atmosphere and three bounded-SSH workflow gates.
         self.assertEqual(sum(n for name, n in counts.items()
-                             if name not in {'test_ssh_grid.py', 'test_atmos.py', 'test_atmos_admission.py', 'test_atmos_first_source.py', 'test_atmos_longitude.py'}), 68 + 1 + 3)
+                             if name not in {'test_ssh_grid.py', 'test_atmos.py', 'test_atmos_admission.py', 'test_atmos_first_source.py', 'test_atmos_longitude.py', 'test_atmos_replica.py'}), 68 + 1 + 3)
         self.assertEqual(counts['test_ssh_grid.py'], 15)
         self.assertEqual(counts['test_atmos.py'], 15)
         self.assertEqual(counts['test_atmos_admission.py'], 4)
         self.assertEqual(counts['test_atmos_first_source.py'], 11)
         self.assertEqual(counts['test_atmos_longitude.py'], 3)
-        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15 + 4 + 11 + 3)
+        self.assertEqual(counts['test_atmos_replica.py'], 6)
+        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15 + 4 + 11 + 3 + 6)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(

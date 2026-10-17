@@ -29,6 +29,10 @@ MAX_REQUESTS = 210
 TOTAL_SECONDS = 1200
 GFS_HOST = 'noaa-gfs-bdp-pds.s3.amazonaws.com'
 IFS_HOST = 'ecmwf-forecasts.s3.amazonaws.com'
+IFS_SOURCES = {
+    'aws': (IFS_HOST, ''),
+    'google': ('storage.googleapis.com', '/ecmwf-open-data'),
+}
 GFS_SELECTORS = {
     'gust': ('GUST', 'surface'), 'visibility': ('VIS', 'surface'),
     'pressure': ('PRMSL', 'mean sea level'),
@@ -247,7 +251,27 @@ def decode_message(raw: bytes, dataset: str, field: str, run: datetime, offset: 
         eccodes.codes_release(handle)
 
 
-def generate(dataset: str, run: datetime, out: Path, *, budget=None, decoder=decode_message) -> Path:
+def ifs_source_location(source):
+    """One explicitly selected official replica; no URL input or failover.
+
+    ECMWF's own ecmwf-opendata/urls.py lists the Google bucket. The original
+    AWS path remains the default so existing reviewed invocations do not change.
+    """
+    _require(type(source) is str and source in IFS_SOURCES, 'unknown IFS source')
+    return IFS_SOURCES[source]
+
+
+def ifs_original_url(run, offset, source='aws'):
+    host, prefix = ifs_source_location(source)
+    _require(type(offset) is int and 0 <= offset <= 240 and offset % 6 == 0,
+             'invalid IFS original step')
+    stamp, hour = run.strftime('%Y%m%d'), run.strftime('%H')
+    return f'https://{host}{prefix}/{stamp}/{hour}z/ifs/0p25/oper/{stamp}{hour}0000-{offset}h-oper-fc.grib2', host
+
+
+def generate(dataset: str, run: datetime, out: Path, *, budget=None, decoder=decode_message, ifs_source='aws') -> Path:
+    ifs_source_location(ifs_source)
+    _require(dataset == 'ifs-pressure' or ifs_source == 'aws', 'IFS source cannot alter a GFS generation')
     spec = ATMOS_DATASETS[dataset]
     validate_run(dataset, run)
     current = datetime.now(timezone.utc)
@@ -268,9 +292,9 @@ def generate(dataset: str, run: datetime, out: Path, *, budget=None, decoder=dec
             planes = {field: decoder(budget.read(base, GFS_HOST, byte_range=ranges[field]), dataset, field, run, offset)
                       for field in spec['fields']}
         else:
-            base = f'https://{IFS_HOST}/{stamp}/{hour}z/ifs/0p25/oper/{stamp}{hour}0000-{offset}h-oper-fc.grib2'
-            selected = ifs_range(budget.read(base.removesuffix('.grib2') + '.index', IFS_HOST).decode('utf-8'), run, offset)
-            planes = {'pressure': decoder(budget.read(base, IFS_HOST, byte_range=selected), dataset, 'pressure', run, offset)}
+            base, host = ifs_original_url(run, offset, ifs_source)
+            selected = ifs_range(budget.read(base.removesuffix('.grib2') + '.index', host).decode('utf-8'), run, offset)
+            planes = {'pressure': decoder(budget.read(base, host, byte_range=selected), dataset, 'pressure', run, offset)}
         budget.check()
         path = out / f'step-{index:03d}.bin'
         write_frame(path, dataset, run, offset, planes)
@@ -285,10 +309,12 @@ def main():
     parser.add_argument('--run', required=True, help='Exact eligible UTC cycle, e.g. 2026-10-17T00:00:00Z')
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--allow-provider-downloads', action='store_true', default=False)
+    parser.add_argument('--ifs-source', choices=sorted(IFS_SOURCES), default='aws',
+                        help='Explicit official replica; no automatic fallback')
     args = parser.parse_args()
     if not args.allow_provider_downloads:
         parser.error('provider downloads are held; explicit --allow-provider-downloads required')
-    generate(args.dataset, parse_utc(args.run, 'run'), args.out)
+    generate(args.dataset, parse_utc(args.run, 'run'), args.out, ifs_source=args.ifs_source)
 
 
 if __name__ == '__main__':
