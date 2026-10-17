@@ -49,13 +49,14 @@ class ProofBudget(DownloadBudget):
         self.body_bytes = 0
         self.records = []
         self.label = ''
+        self.max_reads = MAX_READS
         self.opener = RecordingOpener(self, self.opener)
 
     def check(self):
         _require(self.clock() <= self.deadline, 'first-source deadline exceeded')
         _require(self.bytes <= MAX_BODY_BYTES and self.body_bytes <= MAX_BODY_BYTES,
                  'first-source body budget exceeded')
-        _require(self.requests <= MAX_READS, 'first-source request budget exceeded')
+        _require(self.requests <= self.max_reads, 'first-source request budget exceeded')
         _require(self.directory_bytes <= MAX_DIRECTORY_BYTES, 'first-source directory budget exceeded')
 
     def write(self, relative, body):
@@ -75,7 +76,7 @@ class ProofBudget(DownloadBudget):
 
     def read_original(self, label, url, host, *, byte_range=None):
         self.check()
-        _require(self.requests < MAX_READS, 'first-source request budget exceeded before read')
+        _require(self.requests < self.max_reads, 'first-source request budget exceeded before read')
         _require(self.body_bytes < MAX_BODY_BYTES, 'first-source body budget exhausted before open')
         _require(self.directory_bytes < MAX_DIRECTORY_BYTES - 1024 * 1024,
                  'first-source directory reserve exhausted before open')
@@ -201,8 +202,9 @@ def verify_samples(plane, probe):
 
 def prove_first_source(gfs_run, ifs_run, out, *, allow_provider_downloads=False,
                        budget_factory=ProofBudget, decoder=decode_message,
-                       probe=native_source_probe, now=None, runtime=None):
+                       probe=native_source_probe, now=None, runtime=None, ifs_only=False):
     _require(allow_provider_downloads is True, 'reviewed first-source reads are held')
+    _require(type(ifs_only) is bool, 'invalid diagnostic scope')
     now = now or datetime.now(timezone.utc)
     validate_run('gfs-atmos', gfs_run)
     validate_run('ifs-pressure', ifs_run)
@@ -214,15 +216,18 @@ def prove_first_source(gfs_run, ifs_run, out, *, allow_provider_downloads=False,
     _require(not out.exists() and not out.is_symlink(), 'diagnostic output must be fresh')
     out.mkdir(parents=True)
     budget = budget_factory(out)
+    budget.max_reads = 4 if ifs_only else MAX_READS
     frames, fields = [], []
     report = {'purpose': 'original-source diagnostic only', 'completeCohort': False, 'publication': False,
               'gfsRun': gfs_run.isoformat(), 'ifsRun': ifs_run.isoformat(),
-              'runtime': runtime,
-              'requestedAt': now.isoformat(), 'limits': {'reads': MAX_READS, 'bodyBytes': MAX_BODY_BYTES,
+              'runtime': runtime, 'scope': 'ifs-pressure-only' if ifs_only else 'gfs-and-ifs',
+              'requestedAt': now.isoformat(), 'limits': {'reads': budget.max_reads, 'bodyBytes': MAX_BODY_BYTES,
               'directoryBytes': MAX_DIRECTORY_BYTES, 'seconds': MAX_SECONDS, 'readSeconds': 20,
               'fieldBytes': MAX_FIELD_BYTES, 'processBytes': MAX_PROCESS_BYTES}}
     try:
-        for dataset, run, offsets in [('gfs-atmos', gfs_run, (0, 168)), ('ifs-pressure', ifs_run, (0, 240))]:
+        selections = [('ifs-pressure', ifs_run, (0, 240))] if ifs_only else [
+            ('gfs-atmos', gfs_run, (0, 168)), ('ifs-pressure', ifs_run, (0, 240))]
+        for dataset, run, offsets in selections:
             stamp, hour = run.strftime('%Y%m%d'), run.strftime('%H')
             for offset in offsets:
                 budget.check()
@@ -262,7 +267,8 @@ def prove_first_source(gfs_run, ifs_run, out, *, allow_provider_downloads=False,
                 frames.append({'dataset': dataset, 'offset': offset, 'path': path.name,
                                'bytes': path.stat().st_size, 'sha256': digest(path.read_bytes()),
                                'source': metadata_for(dataset)})
-        _require(budget.requests == MAX_READS and len(frames) == 4 and len(fields) == 12,
+        expected = (4, 2, 2) if ifs_only else (MAX_READS, 4, 12)
+        _require((budget.requests, len(frames), len(fields)) == expected,
                  'diagnostic original inventory incomplete')
         report['state'] = 'observed'
     except BaseException as error:
@@ -284,6 +290,8 @@ def main():
     parser.add_argument('--ifs-run', required=True)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--read-reviewed-first-source', action='store_true', default=False)
+    parser.add_argument('--ifs-only', action='store_true', default=False,
+                        help='Four-read IFS diagnostic only; never repeats GFS or forms a complete cohort')
     args = parser.parse_args()
     if not args.read_reviewed_first_source:
         parser.error('provider reads are held; explicit --read-reviewed-first-source required')
@@ -301,7 +309,7 @@ def main():
         runtime = {'python': sys.version, 'ecCodesApi': eccodes.codes_get_api_version(),
                    'forbiddenImportedModules': []}
         prove_first_source(parse_utc(args.gfs_run, 'gfs run'), parse_utc(args.ifs_run, 'ifs run'), args.out,
-                           allow_provider_downloads=True, runtime=runtime)
+                           allow_provider_downloads=True, runtime=runtime, ifs_only=args.ifs_only)
     finally:
         signal.alarm(0)
 

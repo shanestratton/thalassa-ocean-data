@@ -77,6 +77,42 @@ def fixture_decoder(_raw, _dataset, field, _run, _offset):
 
 
 class AtmosFirstSourceProofTests(unittest.TestCase):
+    def test_ifs_only_retains_four_originals_without_any_gfs_read(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            out = Path(temporary) / 'ifs-only'
+            opener = FixtureOpener()
+            budgets = []
+            def factory(p):
+                budget = ProofBudget(p, opener=opener)
+                budgets.append(budget)
+                return budget
+            report = prove_first_source(RUN, IFS_RUN, out, allow_provider_downloads=True,
+                ifs_only=True, now=RUN+timedelta(hours=5), budget_factory=factory,
+                decoder=fixture_decoder, probe=fixture_probe)
+            self.assertEqual(report['state'], 'observed')
+            self.assertEqual(report['scope'], 'ifs-pressure-only')
+            self.assertEqual(report['limits']['reads'], 4)
+            self.assertEqual((report['requests'], len(report['originals']), len(report['frames']), len(report['fields'])),
+                             (4, 4, 2, 2))
+            self.assertTrue(all(url.startswith(f'https://{IFS_HOST}/') for url, _, _ in opener.calls))
+            self.assertEqual([x['offset'] for x in report['frames']], [0, 240])
+            self.assertFalse(report['publication'])
+            self.assertFalse(report['completeCohort'])
+            for frame in report['frames']:
+                validate_frame(out / frame['path'], 'ifs-pressure', IFS_RUN, frame['offset'])
+            with self.assertRaisesRegex(ContractError, 'request budget'):
+                budgets[0].read_original('extra-index', f'https://{IFS_HOST}/extra.index', IFS_HOST)
+            self.assertEqual(len(opener.calls), 4)
+
+    def test_ifs_only_scope_must_be_explicit_boolean_before_reads(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            for i, value in enumerate(['true', 1, None]):
+                out = Path(temporary) / str(i)
+                with self.assertRaisesRegex(ContractError, 'diagnostic scope'):
+                    prove_first_source(RUN, IFS_RUN, out, allow_provider_downloads=True,
+                        ifs_only=value, now=RUN+timedelta(hours=5))
+                self.assertFalse(out.exists())
+
     def test_complete_fixture_retains_exact_sixteen_originals_and_four_frames(self):
         with tempfile.TemporaryDirectory() as temporary:
             out = Path(temporary) / 'proof'
