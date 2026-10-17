@@ -1,0 +1,126 @@
+name: Atmosphere - Held Trusted Release
+
+on:
+    workflow_dispatch:
+        inputs:
+            dataset:
+                description: Reviewed atmospheric dataset
+                type: choice
+                options: [gfs-atmos, ifs-pressure]
+                default: gfs-atmos
+                required: true
+            run_utc:
+                description: Exact eligible UTC model cycle (YYYY-MM-DDTHH:00:00Z)
+                type: string
+                required: true
+            allow_provider_downloads:
+                description: Enable bounded provider reads after source review
+                type: boolean
+                default: false
+            publish:
+                description: Publish verified assets and discovery slots after review
+                type: boolean
+                default: false
+
+permissions: {}
+
+concurrency:
+    group: publisher-atmos-${{ inputs.dataset }}
+    cancel-in-progress: false
+
+jobs:
+    proof:
+        runs-on: ubuntu-24.04
+        timeout-minutes: 10
+        permissions:
+            contents: read
+        steps:
+            - name: Checkout exact reviewed source
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+            - name: Set up Python 3.11.15
+              uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+              with:
+                  python-version: '3.11.15'
+                  cache: pip
+                  cache-dependency-path: scripts/atmos-requirements.lock
+            - name: Install only exact hash-locked atmospheric wheels
+              run: 'python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/atmos-requirements.lock'
+            - name: Prove contracts and native decoder without provider access
+              env:
+                  NO_PROXY: '127.0.0.1,localhost,::1'
+                  HTTPS_PROXY: 'http://127.0.0.1:9'
+                  HTTP_PROXY: 'http://127.0.0.1:9'
+                  ALL_PROXY: 'http://127.0.0.1:9'
+              run: |
+                  export no_proxy="$NO_PROXY"
+                  export https_proxy="$HTTPS_PROXY"
+                  export http_proxy="$HTTP_PROXY"
+                  export all_proxy="$ALL_PROXY"
+                  python -m unittest discover -s scripts/publisher-tests -p 'test_atmos.py' -v
+                  python -m unittest discover -s scripts/publisher-tests -p 'test_release_gate.py' -v
+                  python -m unittest discover -s scripts/atmos-native-tests -p 'test_*.py' -v
+
+    generate:
+        if: github.ref == 'refs/heads/master' && inputs.allow_provider_downloads == true
+        needs: proof
+        runs-on: ubuntu-24.04
+        timeout-minutes: 30
+        permissions:
+            contents: read
+        steps:
+            - name: Checkout producer commit
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+            - name: Set up Python 3.11.15
+              uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+              with:
+                  python-version: '3.11.15'
+                  cache: pip
+                  cache-dependency-path: scripts/atmos-requirements.lock
+            - name: Install hash-locked producer dependencies
+              run: 'python -m pip install --disable-pip-version-check --require-hashes --only-binary=:all: -r scripts/atmos-requirements.lock'
+            - name: Generate exact eligible bounded cohort
+              env:
+                  ATMOS_DATASET: ${{ inputs.dataset }}
+                  ATMOS_RUN_UTC: ${{ inputs.run_utc }}
+              run: python scripts/atmos_pipeline.py --dataset "$ATMOS_DATASET" --run "$ATMOS_RUN_UTC" --out /tmp/atmos-output --allow-provider-downloads
+            - name: Seal generated bundle as workflow artifact
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: atmos-${{ inputs.dataset }}-${{ github.run_id }}
+                  path: /tmp/atmos-output/bundle/
+                  if-no-files-found: error
+                  retention-days: 1
+                  overwrite: true
+                  compression-level: 0
+
+    publish:
+        if: github.ref == 'refs/heads/master' && inputs.allow_provider_downloads == true && inputs.publish == true
+        needs: generate
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        permissions:
+            contents: write
+        steps:
+            - name: Checkout publisher commit
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+            - name: Set up publisher Python 3.11.15
+              uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+              with:
+                  python-version: '3.11.15'
+            - name: Restore sealed bundle
+              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+              with:
+                  name: atmos-${{ inputs.dataset }}-${{ github.run_id }}
+                  path: /tmp/publisher-bundle
+            - name: Verify remote assets and publish manifest last
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GITHUB_REPOSITORY: ${{ github.repository }}
+                  ATMOS_DATASET: ${{ inputs.dataset }}
+              run: python scripts/publish_dataset.py --dataset "$ATMOS_DATASET" --bundle /tmp/publisher-bundle
