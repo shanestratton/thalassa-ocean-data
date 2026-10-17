@@ -233,7 +233,7 @@ def prove_first_source(gfs_run, ifs_run, out, *, allow_provider_downloads=False,
                     ranges, host = gfs_ranges(index.decode('utf-8'), run, offset), GFS_HOST
                 else:
                     url = f'https://{IFS_HOST}/{stamp}/{hour}z/ifs/0p25/oper/{stamp}{hour}0000-{offset}h-oper-fc.grib2'
-                    index = budget.read_original(prefix + '-index', url + '.index', IFS_HOST)
+                    index = budget.read_original(prefix + '-index', url.removesuffix('.grib2') + '.index', IFS_HOST)
                     ranges, host = {'pressure': ifs_range(index.decode('utf-8'), run, offset)}, IFS_HOST
                 planes = {}
                 for field in ATMOS_DATASETS[dataset]['fields']:

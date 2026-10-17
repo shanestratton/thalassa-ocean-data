@@ -265,7 +265,7 @@ def generate(dataset: str, run: datetime, out: Path, *, budget=None, decoder=dec
                       for field in spec['fields']}
         else:
             base = f'https://{IFS_HOST}/{stamp}/{hour}z/ifs/0p25/oper/{stamp}{hour}0000-{offset}h-oper-fc.grib2'
-            selected = ifs_range(budget.read(base + '.index', IFS_HOST).decode('utf-8'), run, offset)
+            selected = ifs_range(budget.read(base.removesuffix('.grib2') + '.index', IFS_HOST).decode('utf-8'), run, offset)
             planes = {'pressure': decoder(budget.read(base, IFS_HOST, byte_range=selected), dataset, 'pressure', run, offset)}
         budget.check()
         path = out / f'step-{index:03d}.bin'

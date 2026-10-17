@@ -459,6 +459,7 @@ class PublisherReleaseGateTests(unittest.TestCase):
             ],
             "test_atmos_first_source.py": [
                 "test_complete_fixture_retains_exact_sixteen_originals_and_four_frames",
+                "test_full_generator_uses_original_ifs_index_extension_before_any_field_read",
                 "test_consent_and_explicit_current_cycles_precede_any_output_or_read",
                 "test_request_body_deadline_and_directory_quotas_hold_before_another_open",
                 "test_native_probe_admits_before_indexed_expansion_and_releases",
@@ -483,8 +484,8 @@ class PublisherReleaseGateTests(unittest.TestCase):
         self.assertEqual(counts['test_ssh_grid.py'], 15)
         self.assertEqual(counts['test_atmos.py'], 15)
         self.assertEqual(counts['test_atmos_admission.py'], 4)
-        self.assertEqual(counts['test_atmos_first_source.py'], 8)
-        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15 + 4 + 8)
+        self.assertEqual(counts['test_atmos_first_source.py'], 9)
+        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15 + 4 + 9)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(

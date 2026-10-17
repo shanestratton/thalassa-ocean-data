@@ -27,7 +27,7 @@ endpoints and verify the exact bitmap-unknown node and remaining known nodes.
 
 The original source tripwire keeps its 72 baseline tests, 15 SSH tests and 15 original
 atmosphere tests. Four new admission methods and eight one-shot methods are added
-explicitly: 114 source cases total, with all original named assertions retained.
+explicitly: 115 source cases total, with all original named assertions retained.
 The native closure retains those three original actual ecCodes tests and adds the
 two indexed-node cases: five native tests, zero skips, and a mandatory process exit 0.
 
@@ -102,3 +102,20 @@ After genuine Linux proofs, root may review a separately source-pinned one-shot
 read of this shape. No actual command was run with provider consent in this packet.
 Even a successful source diagnostic would establish neither a complete forecast
 release nor world forecast availability, navigational accuracy or app activation.
+
+## First real observation and corrected index path
+
+Run 39007145855 preserved ten original GFS fields and two independently validated
+diagnostic frames at offsets 0 and 168 hours. Its thirteenth request correctly
+refused an ECMWF HTTP 404: the code appended `.index` to `.grib2`, rather than
+replacing the extension. All response headers and admitted original bytes remain
+in `work/atmos141-first-real-source-failed`; no complete result is claimed.
+
+Both the diagnostic and held full generator now replace that extension, following
+[ECMWF's original file naming documentation](https://confluence.ecmwf.int/pages/viewpage.action?pageId=327648995).
+The fictional diagnostic transport now refuses the wrong suffix and asserts both
+exact original index URLs. One new case independently stops the full generator
+at its first index request and checks the exact provider path before any field
+read. The source tripwire admits this deliberate addition: 115 source cases;
+the five actual native cases and all scientific admission rules remain unchanged.
+The URL repair requires a new isolated proof before a second bounded real read.

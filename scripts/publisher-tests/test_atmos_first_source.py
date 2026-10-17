@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from atmos_contract import CELLS, FIELDS, validate_frame
-from atmos_pipeline import GFS_HOST, GFS_SELECTORS
+from atmos_pipeline import GFS_HOST, IFS_HOST, GFS_SELECTORS, generate
 from prove_atmos_first_source import (MAX_BODY_BYTES, MAX_DIRECTORY_BYTES, ProofBudget,
     SAMPLE_POINTS, DiagnosticMetadataRefused, native_source_probe, prove_first_source)
 from publisher_contract import ContractError
@@ -56,6 +56,8 @@ class FixtureOpener:
             rows.append(f'6:100:d=2026101700:HGT:surface:{valid}:')
             body = '\n'.join(rows).encode()
         else:
+            if not url.startswith(f'https://{IFS_HOST}/') or not url.endswith('-oper-fc.index'):
+                raise ContractError('fictional transport refuses non-provider IFS index path')
             offset = int(url.rsplit('/', 1)[-1].split('-')[1].removesuffix('h'))
             body = json.dumps({'param': 'msl', 'levtype': 'sfc', 'date': '20261016', 'time': '1200',
                                'step': str(offset), 'stream': 'oper', 'type': 'fc',
@@ -88,6 +90,10 @@ class AtmosFirstSourceProofTests(unittest.TestCase):
             self.assertFalse(report['publication'])
             self.assertEqual(sum(1 for _, header, _ in opener.calls if header), 12)
             self.assertTrue(all(timeout == 20 for _, _, timeout in opener.calls))
+            self.assertEqual([url for url, _, _ in opener.calls if url.endswith('.index')], [
+                'https://ecmwf-forecasts.s3.amazonaws.com/20261016/12z/ifs/0p25/oper/20261016120000-0h-oper-fc.index',
+                'https://ecmwf-forecasts.s3.amazonaws.com/20261016/12z/ifs/0p25/oper/20261016120000-240h-oper-fc.index',
+            ])
             for original in report['originals']:
                 from hashlib import sha256
                 raw = (out / original['bodyPath']).read_bytes()
@@ -99,6 +105,24 @@ class AtmosFirstSourceProofTests(unittest.TestCase):
             self.assertLess(sum(p.stat().st_size for p in out.rglob('*') if p.is_file()), MAX_DIRECTORY_BYTES)
             self.assertFalse((out / 'bundle').exists())
             self.assertEqual(len(list(out.glob('diagnostic-*.bin'))), 4)
+
+    def test_full_generator_uses_original_ifs_index_extension_before_any_field_read(self):
+        class FirstIndexObserved(Exception): pass
+        calls = []
+        class FirstReadBudget:
+            def check(self): pass
+            def read(self, url, host, *, byte_range=None):
+                calls.append((url, host, byte_range))
+                raise FirstIndexObserved()
+        with tempfile.TemporaryDirectory() as temporary, \
+                patch('atmos_pipeline.datetime') as clock, \
+                patch('atmos_pipeline.producer_provenance', return_value={}):
+            clock.now.return_value = IFS_RUN + timedelta(hours=5)
+            with self.assertRaises(FirstIndexObserved):
+                generate('ifs-pressure', IFS_RUN, Path(temporary) / 'first', budget=FirstReadBudget())
+        self.assertEqual(calls, [(
+            'https://ecmwf-forecasts.s3.amazonaws.com/20261016/12z/ifs/0p25/oper/20261016120000-0h-oper-fc.index',
+            IFS_HOST, None)])
 
     def test_consent_and_explicit_current_cycles_precede_any_output_or_read(self):
         with tempfile.TemporaryDirectory() as temporary:
