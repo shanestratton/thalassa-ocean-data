@@ -169,7 +169,8 @@ def admit_original_metadata(metadata: Mapping[str, Any], dataset: str, field: st
         'gridType': 'regular_ll', 'Ni': 1440, 'Nj': 721, 'numberOfPoints': 1440 * 721,
         'iDirectionIncrementInDegrees': .25, 'jDirectionIncrementInDegrees': .25,
         'latitudeOfFirstGridPointInDegrees': 90, 'latitudeOfLastGridPointInDegrees': -90,
-        'longitudeOfFirstGridPointInDegrees': 0, 'longitudeOfLastGridPointInDegrees': 359.75,
+        'longitudeOfFirstGridPointInDegrees': 0 if dataset == 'gfs-atmos' else 180,
+        'longitudeOfLastGridPointInDegrees': 359.75 if dataset == 'gfs-atmos' else 179.75,
         'iScansNegatively': 0, 'jScansPositively': 0, 'jPointsAreConsecutive': 0, 'alternativeRowScanning': 0,
         'dataDate': int(run.strftime('%Y%m%d')), 'dataTime': run.hour * 100,
         'validityDate': int(valid.strftime('%Y%m%d')), 'validityTime': valid.hour * 100,
@@ -198,10 +199,13 @@ def sample_original(values: Sequence[float], metadata: Mapping[str, Any], datase
     output = array('f')
     mask = bytearray()
     _, _, low, high = FIELDS[field]
+    # Eastward native rows start at the declared original node: GFS 0E,
+    # IFS 180E. Admission above binds the exact endpoints/scanning/increment.
+    source_origin = metadata['longitudeOfFirstGridPointInDegrees']
     for row in range(181):
         source_row = (180 - row) * 4
         for col in range(360):
-            source_col = ((col - 180) % 360) * 4
+            source_col = int(((col - 180 - source_origin) % 360) * 4)
             value = float(values[source_row * 1440 + source_col])
             if (has_missing and value == missing) or not math.isfinite(value):
                 output.append(0)

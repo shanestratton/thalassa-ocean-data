@@ -168,7 +168,12 @@ def native_source_probe(raw, dataset, field, run, offset):
             admit_original_metadata(metadata, dataset, field, run, offset)
         except ContractError as error:
             raise DiagnosticMetadataRefused(metadata, str(error)) from error
-        indexes = [int((90 - lat) * 4) * 1440 + int((lon % 360) * 4) for lon, lat in SAMPLE_POINTS]
+        # Keep this indexed original-node query separate from the full sampler.
+        # Longitude is relative to the original admitted first grid point,
+        # rather than assuming that every provider's eastward row starts at 0E.
+        origin = metadata['longitudeOfFirstGridPointInDegrees']
+        indexes = [int((90 - lat) * 4) * 1440 + int(((lon - origin) % 360) * 4)
+                   for lon, lat in SAMPLE_POINTS]
         selected = eccodes.codes_get_double_elements(handle, 'values', indexes)
         _require(len(selected) == len(SAMPLE_POINTS), 'native sample cardinality')
         samples = []

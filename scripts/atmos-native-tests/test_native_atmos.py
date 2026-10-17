@@ -28,7 +28,8 @@ def message(field='pressure', dataset='gfs-atmos', offset=0, masked=False):
                      Ni=1440, Nj=721, iDirectionIncrementInDegrees=.25,
                      jDirectionIncrementInDegrees=.25,
                      latitudeOfFirstGridPointInDegrees=90, latitudeOfLastGridPointInDegrees=-90,
-                     longitudeOfFirstGridPointInDegrees=0, longitudeOfLastGridPointInDegrees=359.75,
+                     longitudeOfFirstGridPointInDegrees=0 if dataset == 'gfs-atmos' else 180,
+                     longitudeOfLastGridPointInDegrees=359.75 if dataset == 'gfs-atmos' else 179.75,
                      iScansNegatively=0, jScansPositively=0, jPointsAreConsecutive=0,
                      alternativeRowScanning=0, dataDate=20261017, dataTime=0,
                      stepUnits=1, forecastTime=offset)
