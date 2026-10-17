@@ -457,6 +457,16 @@ class PublisherReleaseGateTests(unittest.TestCase):
                 "test_admitted_metadata_does_not_relax_value_cardinality_or_physical_guards",
                 "test_metadata_read_failure_still_releases_the_native_handle_without_values",
             ],
+            "test_atmos_first_source.py": [
+                "test_complete_fixture_retains_exact_sixteen_originals_and_four_frames",
+                "test_consent_and_explicit_current_cycles_precede_any_output_or_read",
+                "test_request_body_deadline_and_directory_quotas_hold_before_another_open",
+                "test_native_probe_admits_before_indexed_expansion_and_releases",
+                "test_changed_original_sample_or_mask_refuses_a_diagnostic_frame",
+                "test_truncated_original_preserves_admitted_prefix_and_failure",
+                "test_http_failure_is_held_without_decoder_or_source_substitution",
+                "test_default_cli_refuses_provider_reads_without_consent",
+            ],
         }
         for filename, names in expectations.items():
             with self.subTest(suite=filename):
@@ -469,11 +479,12 @@ class PublisherReleaseGateTests(unittest.TestCase):
                   for path in sorted((REPO_ROOT / "scripts/publisher-tests").glob("test_*.py"))}
         # Original 68 stay pinned, plus held-atmosphere and three bounded-SSH workflow gates.
         self.assertEqual(sum(n for name, n in counts.items()
-                             if name not in {'test_ssh_grid.py', 'test_atmos.py', 'test_atmos_admission.py'}), 68 + 1 + 3)
+                             if name not in {'test_ssh_grid.py', 'test_atmos.py', 'test_atmos_admission.py', 'test_atmos_first_source.py'}), 68 + 1 + 3)
         self.assertEqual(counts['test_ssh_grid.py'], 15)
         self.assertEqual(counts['test_atmos.py'], 15)
         self.assertEqual(counts['test_atmos_admission.py'], 4)
-        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15 + 4)
+        self.assertEqual(counts['test_atmos_first_source.py'], 8)
+        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15 + 4 + 8)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(
