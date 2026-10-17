@@ -458,6 +458,8 @@ class PublisherReleaseGateTests(unittest.TestCase):
                 "test_metadata_read_failure_still_releases_the_native_handle_without_values",
             ],
             "test_atmos_first_source.py": [
+                "test_ifs_only_retains_four_originals_without_any_gfs_read",
+                "test_ifs_only_scope_must_be_explicit_boolean_before_reads",
                 "test_complete_fixture_retains_exact_sixteen_originals_and_four_frames",
                 "test_full_generator_uses_original_ifs_index_extension_before_any_field_read",
                 "test_consent_and_explicit_current_cycles_precede_any_output_or_read",
@@ -484,8 +486,8 @@ class PublisherReleaseGateTests(unittest.TestCase):
         self.assertEqual(counts['test_ssh_grid.py'], 15)
         self.assertEqual(counts['test_atmos.py'], 15)
         self.assertEqual(counts['test_atmos_admission.py'], 4)
-        self.assertEqual(counts['test_atmos_first_source.py'], 9)
-        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15 + 4 + 9)
+        self.assertEqual(counts['test_atmos_first_source.py'], 11)
+        self.assertEqual(sum(counts.values()), 68 + 1 + 3 + 15 + 15 + 4 + 11)
 
     def test_pipeline_readmes_keep_their_science_claims(self) -> None:
         self.assertTrue(

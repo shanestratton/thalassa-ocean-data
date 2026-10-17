@@ -119,3 +119,18 @@ at its first index request and checks the exact provider path before any field
 read. The source tripwire admits this deliberate addition: 115 source cases;
 the five actual native cases and all scientific admission rules remain unchanged.
 The URL repair requires a new isolated proof before a second bounded real read.
+
+## IFS-only recovery diagnostic
+
+The corrected second real run39008153748 retained ten GFS fields again, then
+refused HTTP503 from the correct first ECMWF index. The failed evidence remains
+separate. An independent HEAD later returned200, without reading a response body.
+
+The explicit `--ifs-only` diagnostic now requests only that same fixed IFS12
+cycle at0/240 hours: two original indexes and two pressure ranges. It holds a
+four-read ceiling before opening a fifth request and writes two diagnostic
+frames. The default full diagnostic keeps all16 original requests. Both paths
+retain the same physical, native metadata, mask, sample, clock, size and deadline
+rules; neither forms a complete cohort or publishes. Two added cases bring the
+source count to117, with the same five native cases. New actual Linux proof is
+required before the four-read attempt. No GFS download is needed for that attempt.
