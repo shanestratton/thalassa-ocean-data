@@ -45,7 +45,7 @@ PROVEN_FILES = {
     "scripts/publisher-tests/test_atmos_first_source.py": "5bed15833ced1e309ce9910b7d6a88684ff1ffe76bc387eb153dd82328a98130",
     "scripts/publisher-tests/test_atmos_longitude.py": "275f3456185e42353e906d063f13207a17f6bc0974d8a3fe1896b9be25f9a05c",
     "scripts/publisher-tests/test_atmos_replica.py": "3d2e321bf45f64711abfcdaf355ab2b4e09a3a1c5521ae7f86df8c030693f40f",
-    "scripts/publisher-tests/test_release_gate.py": "ce4a3eb6802201fb25068aae1aa5698d2aeb6cddc46cae286e892156c23e4b24",
+    "scripts/publisher-tests/test_release_gate.py": "526b3c94da4c9bd23ffe69401eaebefed68df9a5b8d38796c27a9f884535f62e",
     "scripts/publisher-tests/test_ssh_grid.py": "421d12b4eb08a04e5dd3d48e6b79a18755d4c943a9eafad60d9b7ffb52067ea2",
     "scripts/publisher_contract.py": "3ecec84d3d6afb4e44f309425a7d7eba78160a61474de78c433ac5e6c2fca6a2",
     "scripts/ssh_grid.py": "3b229876e75930f0b37d9ebf3368a4e9731625d403f14a8178fada412090bfb4"

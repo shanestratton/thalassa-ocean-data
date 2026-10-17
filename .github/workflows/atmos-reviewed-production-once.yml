@@ -71,7 +71,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test -z "$(git status --porcelain)"
           git merge-base --is-ancestor b60f8796429d2c71f95790ece690cf52202e90e8 HEAD
-          printf '%s  %s\n' '01b02f5908eedfbec3afd3ff0fb9ae62c2e7dec93596ef8abcb79b5d7cc761b4' scripts/atmos_production_runner.py | sha256sum --check --strict
+          printf '%s  %s\n' '2433715b578eb7adfac8421aa50a02332a31f8b4c2ef9d13b000daaffd027504' scripts/atmos_production_runner.py | sha256sum --check --strict
           test ! -e "$RUNNER_TEMP/atmos141-production-proof"
           mkdir "$RUNNER_TEMP/atmos141-production-proof"
           printf '%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/atmos141-production-proof/source.txt"
@@ -167,7 +167,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s  %s\n' '01b02f5908eedfbec3afd3ff0fb9ae62c2e7dec93596ef8abcb79b5d7cc761b4' scripts/atmos_production_runner.py | sha256sum --check --strict
+          printf '%s  %s\n' '2433715b578eb7adfac8421aa50a02332a31f8b4c2ef9d13b000daaffd027504' scripts/atmos_production_runner.py | sha256sum --check --strict
           EVIDENCE_DIR="$RUNNER_TEMP/atmos141-production/$GITHUB_RUN_ID/$ATMOS_DATASET"
           test ! -e "$EVIDENCE_DIR"
           mkdir -p "$EVIDENCE_DIR"

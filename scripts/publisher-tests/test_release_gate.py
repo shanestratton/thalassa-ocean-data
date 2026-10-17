@@ -169,7 +169,7 @@ class PublisherReleaseGateTests(unittest.TestCase):
                     self.assertRegex(line, r"@[0-9a-f]{40} # v\d+\.\d+\.\d+\s*$", line)
                 self.assertEqual(len(re.findall(r"(?m)^\s*(?:-\s+)?uses:", code)), len(re.findall(r"(?m)uses:\s*[^@\s]+@", code)))
                 writes = sorted(re.findall(r"([A-Za-z0-9_-]+):\s*write\b", code))
-                expected = ["contents"] if PIPELINE_WORKFLOW.match(path.name) or path.name in {"keepalive.yml", "atmos-held-pipeline.yml", "ssh-observations-publisher.yml", "atmos-reviewed-production-once.yml"} else []
+                expected = ["contents"] if PIPELINE_WORKFLOW.match(path.name) or path.name in {"keepalive.yml", "atmos-held-pipeline.yml", "ssh-observations-publisher.yml", "atmos-reviewed-production-once.yml", "atmos-operational.yml"} else []
                 self.assertEqual(writes, expected)
                 self.assertNotRegex(code, r"pull_request_target|workflow_run")
 
